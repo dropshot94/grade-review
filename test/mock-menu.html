@@ -9,7 +9,12 @@
 <table id="rows"></table>
 <h3>Department Chair Tasks</h3>
 <table id="tasks" class="table">
-  <thead><tr><th></th><th>Faculty Instructor(s)</th><th>Course</th><th>Seminar</th></tr></thead>
+  <thead><tr><th></th><th>Faculty Instructor(s)</th><th>Course</th><th>Sem</th></tr></thead>
+  <tbody></tbody>
+</table>
+<h3>Tasks without a seminar column</h3>
+<table id="tasks2" class="table">
+  <thead><tr><th></th><th>Faculty Instructor(s)</th><th>Course</th></tr></thead>
   <tbody></tbody>
 </table>
 <h3>Drop-down</h3>
@@ -29,13 +34,19 @@ var xfo = new URLSearchParams(location.search).get('xfo') ? '&xfo=1' : '';
 document.querySelector('input[name=xfo]').value = xfo ? '1' : '';
 [1,2,3].forEach(function(n){ var li=document.createElement('li'); li.innerHTML='<a href="mock-compass.html?sem='+n+xfo+'">Seminar '+n+'</a>'; document.getElementById('links').appendChild(li); });
 [4,5].forEach(function(n){ var tr=document.createElement('tr'); tr.innerHTML='<td onclick="goSem('+n+')" style="cursor:pointer">Seminar '+n+'</td>'; document.getElementById('rows').appendChild(tr); });
-[10,11,12].forEach(function(n){
+setTimeout(function(){ [10,11,12].forEach(function(n){
   var tr=document.createElement('tr');
   tr.innerHTML='<td><button type="button" class="btn btn-primary btn-xs edit-seminar"><i class="glyphicon glyphicon-edit"></i></button></td>'+
     '<td>Adair, Pat, Dr; Beale, Lee, COL</td><td>AA2200Foundations Theories and Concepts</td><td>'+n+'</td>';
   tr.querySelector('button').addEventListener('click', function(){ goSem(n); });
   document.querySelector('#tasks tbody').appendChild(tr);
-});
+}); }, 1500);
+setTimeout(function(){ [13,14].forEach(function(n){
+  var tr=document.createElement('tr');
+  tr.innerHTML='<td><a class="open-task"><span class="icon"></span></a></td><td>Kemp, Lee, Dr</td><td>AA2300Theory of War and Strategy</td>';
+  tr.querySelector('a').addEventListener('click', function(){ goSem(n); });
+  document.querySelector('#tasks2 tbody').appendChild(tr);
+}); }, 800);
 function goSem(n){ setTimeout(function(){ location.href='mock-compass.html?sem='+n+xfo; }, 100); }
 </script>
 </body></html>
