@@ -2,7 +2,7 @@
 
 A two-part tool to review Compass course grades across seminars before you approve them.
 
-1. **Collector.** A bookmarklet that runs on the Compass Director Dashboard in your own logged-in browser. It opens each student's Course Evaluation Report, reads it, closes it, and saves the result in your browser. You then download one file.
+1. **Collector.** A bookmarklet that runs on the Compass Director Dashboard in your own logged-in browser. It opens each student's Course Evaluation Report, reads it, closes it, and saves the result in your browser. It can work through many seminars in one run. You then download one file.
 2. **Review page.** `grade-review.html`, one offline file. Open it in Edge or Chrome, load the file from step 1, and review.
 
 Nothing goes to a server. The collector only reads pages you can already see. The review page has a security policy that blocks all network requests, so it cannot send data anywhere. The repo holds no student data; `.gitignore` blocks the export file names.
@@ -11,7 +11,8 @@ Nothing goes to a server. The collector only reads pages you can already see. Th
 
 1. Download `grade-review.html` and open it (double-click).
 2. Drag the **Collect grades** button to your bookmarks bar. If your browser blocks bookmarklets, use **copy the collector code**, then paste it into the browser console (F12) on the Compass page.
-3. In Compass, open the Director Dashboard list for one course and seminar. Click **Collect grades**, then **Collect this page**. Repeat for each seminar and course.
+3. In Compass, open the Director Dashboard page where you pick a seminar. Click **Collect grades**, then **Collect many seminars**. The panel lists the seminar links or drop-down lists it found on the page. Tick the seminars and click **Start**. A work window opens over the page and reads every report in each seminar. Leave the tab open until the panel says Done. (If Compass refuses to load inside the page, the collector uses a pop-up window instead. Allow pop-ups for Compass if the browser asks.)
+   - To read only the seminar on screen, open its student list and click **Collect this page**.
 4. In the collector panel, click **Download for review**, then **Clear saved data**.
 5. Load the file into `grade-review.html`.
 
@@ -43,7 +44,7 @@ The thresholds are under **Flags > Thresholds**.
 
 ## If the collector fails
 
-Compass may change its page layout. Click **Structure file** in the collector panel while a report is open. It saves the page layout with every name, grade, and comment removed. Use it to adjust `src/collector.js`.
+Compass may change its page layout. Click **Structure file** in the collector panel on the page that fails (the seminar picker, or a student list with a report open). It saves the page layout with every name, grade, and comment removed. Use it to adjust `src/collector.js`.
 
 ## Develop
 
@@ -59,4 +60,5 @@ node test/e2e.mjs   # runs the collector on a mock Compass page, then the review
 | `src/analysis.js` | All checks and statistics. No DOM. |
 | `src/app.js`, `src/styles.css`, `src/template.html` | Review page. |
 | `src/sample.js` | Made-up sample data for the "Try sample data" button and tests. |
-| `test/mock-compass.html` | Made-up copy of the Director Dashboard layout for tests. |
+| `test/mock-compass.html` | Made-up copy of the Director Dashboard student list and report for tests. |
+| `test/mock-menu.html` | Made-up seminar picker (links, clickable rows, drop-down form) for tests. |

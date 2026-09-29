@@ -5,6 +5,7 @@
  .modal.in{display:block} table{border-collapse:collapse} td,th{padding:4px 8px;border-bottom:1px solid #ddd}
 </style></head>
 <body>
+<p><a href="mock-menu.html">Back to seminar list</a> <a href="mock-menu.html?help=1">Help</a></p>
 <!-- Made-up students. Layout mirrors the Compass Director Dashboard and its Course Evaluation Report modal. -->
 <table id="grades" class="table">
  <thead><tr><th></th><th>Student Name</th><th>Oral</th><th>Strategic Thinking</th><th>Writing</th><th>Overall</th></tr></thead>
@@ -28,6 +29,9 @@ var people=[
  ['LTC','Riley','E','Nash Jr','P','P','P','B+'],
  ['Mr','Sawyer','','Pryor','D','D','S','A-']
 ];
+var q=new URLSearchParams(location.search), SEM=q.get('sem')||'1', COURSE=q.get('course')||'Foundations Theories and Concepts';
+var POOL=['Abbott','Barlow','Calder','Dunmore','Ellery','Fairbank','Ingram','Jessup','Kirkland','Lockhart','Merriam','Norwood','Oakes','Pembrook','Quimby','Radley','Upton','Yardley','Ashby','Brandt','Delancey','Eastman','Fenwick','Gilchrist','Holloway','Iverson','Jarrell','Kessler','Lindqvist','Mercer','Orton','Prescott','Rourke','Sherwood','Tolliver','Underhill','Wexford','Ainsley','Bramwell','Crowther','Dexter','Everly','Fitzhugh','Granger','Hensley','Kimball','Langford','Maddox','Pryor','Redmond','Sinclair','Talbot','Wardell','Yates','Ballard','Carrow','Donnelly','Emmett','Forsyth','Garrick'];
+if (SEM!=='1') people.forEach(function(p,i){ p[3]=POOL[((+SEM-2)*10+i)%POOL.length]; });
 var tb=document.querySelector('#grades tbody');
 people.forEach(function(p,i){
  var tr=document.createElement('tr');
@@ -43,7 +47,7 @@ function showReport(i){
   if (i===5) comment = p[1]+' performed very well, earning a final grade of (A).';
   b.innerHTML='<h2>'+last+', '+p[1]+(p[2]?' '+p[2]:'')+', '+p[0]+'</h2>'+
    '<p><strong>Academic Program:</strong> AY2027 Resident Program &nbsp; <strong>Term:</strong> 0</p>'+
-   '<p><strong>Course:</strong> Foundations Theories and Concepts &nbsp; <strong>Seminar:</strong> 1</p>'+
+   '<p><strong>Course:</strong> '+COURSE+' &nbsp; <strong>Seminar:</strong> '+SEM+'</p>'+
    '<table><tr><th>Element</th><th>Evaluation</th><th>Evaluator\'s Comments</th></tr>'+
    '<tr><td>Strategic Thinking</td><td>'+S[p[5]]+'</td><td>Rubric text for strategic thinking at level '+p[5]+'.</td></tr>'+
    '<tr><td>Writing</td><td>'+S[p[6]]+'</td><td>Rubric text for writing at level '+p[6]+'.</td></tr>'+

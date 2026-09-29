@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Mock seminar picker</title></head>
+<body>
+<!-- Made-up page where you pick a seminar. Each choice reloads the whole page. -->
+<p><a href="mock-menu.html">Home</a> | <a href="mock-menu.html?help=1">Help</a></p>
+<h3>Links</h3>
+<ul id="links"></ul>
+<h3>Clickable rows</h3>
+<table id="rows"></table>
+<h3>Drop-down</h3>
+<form action="mock-compass.html" method="get">
+  <label for="course">Course</label>
+  <select id="course" name="course">
+    <option value="Foundations Theories and Concepts">Foundations</option>
+    <option value="Strategic Leadership">Strategic Leadership</option>
+  </select>
+  <label for="sem">Seminar</label>
+  <select id="sem" name="sem"><option value="">Select...</option><option value="7">Seminar 7</option><option value="8">Seminar 8</option></select>
+  <input type="hidden" name="xfo" value="">
+  <button type="submit">Go</button>
+</form>
+<script>
+var xfo = new URLSearchParams(location.search).get('xfo') ? '&xfo=1' : '';
+document.querySelector('input[name=xfo]').value = xfo ? '1' : '';
+[1,2,3].forEach(function(n){ var li=document.createElement('li'); li.innerHTML='<a href="mock-compass.html?sem='+n+xfo+'">Seminar '+n+'</a>'; document.getElementById('links').appendChild(li); });
+[4,5].forEach(function(n){ var tr=document.createElement('tr'); tr.innerHTML='<td onclick="goSem('+n+')" style="cursor:pointer">Seminar '+n+'</td>'; document.getElementById('rows').appendChild(tr); });
+function goSem(n){ setTimeout(function(){ location.href='mock-compass.html?sem='+n+xfo; }, 100); }
+</script>
+</body></html>
