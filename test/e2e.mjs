@@ -98,6 +98,10 @@ r = await runMany(base + 'test/mock-menu.html', /^Links: Seminar 4/);
 console.log('clickable rows:', r.msg);
 check(seminarsOf(r.got) === '4,5' && r.got.length === 20, 'click run: ' + seminarsOf(r.got) + ' / ' + r.got.length);
 
+r = await runMany(base + 'test/mock-menu.html', /^Links: Seminar 10 \u00b7 AA2200Foundations/);
+console.log('icon buttons in a table:', r.msg);
+check(seminarsOf(r.got) === '10,11,12' && r.got.length === 30, 'icon run: ' + seminarsOf(r.got) + ' / ' + r.got.length);
+
 r = await runMany(base + 'test/mock-menu.html', /^List "Seminar"/, p => p.selectOption('#course', 'Strategic Leadership'));
 console.log('drop-down:', r.msg);
 check(seminarsOf(r.got) === '7,8' && r.got.length === 20, 'select run: ' + seminarsOf(r.got) + ' / ' + r.got.length);
