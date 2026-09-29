@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Mock Director Dashboard</title>
+<style>
+ body{font-family:sans-serif} .modal{display:none;position:fixed;inset:5%;background:#fff;border:1px solid #999;overflow:auto;padding:10px}
+ .modal.in{display:block} table{border-collapse:collapse} td,th{padding:4px 8px;border-bottom:1px solid #ddd}
+</style></head>
+<body>
+<!-- Made-up students. Layout mirrors the Compass Director Dashboard and its Course Evaluation Report modal. -->
+<table id="grades" class="table">
+ <thead><tr><th></th><th>Student Name</th><th>Oral</th><th>Strategic Thinking</th><th>Writing</th><th>Overall</th></tr></thead>
+ <tbody></tbody>
+</table>
+<div class="modal fade" id="rptModal" role="dialog"><div class="modal-dialog"><div class="modal-content">
+ <div class="modal-header"><h4 class="modal-title">Course Evaluation Report</h4><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+ <div class="modal-body" id="rptBody"></div>
+</div></div></div>
+<script>
+var S={P:'Performed to Standards',S:'Superior Performance',D:'Distinguished Performance'};
+var people=[
+ ['LTC','Avery','Q','Stanton','P','S','P','B+'],
+ ['Lt Col','Jordan','M','Hale','S','S','S','B+'],
+ ['LTC','Casey','J','Monroe','P','S','P','B+'],
+ ['COL','Rowan','','Thorne','P','S','S','B+'],
+ ['LTC','Blake','H','Corwin','S','S','S','A-'],
+ ['LTC','Emerson','J','Vickery','S','D','S','A-'],
+ ['LTC','Parker','E','Galloway','P','S','S','A-'],
+ ['CDR','Quinn','K','Whitlock','S','D','S','A-'],
+ ['LTC','Riley','E','Nash Jr','P','P','P','B+'],
+ ['Mr','Sawyer','','Pryor','D','D','S','A-']
+];
+var tb=document.querySelector('#grades tbody');
+people.forEach(function(p,i){
+ var tr=document.createElement('tr');
+ tr.innerHTML='<td><a href="javascript:void(0)" onclick="showReport('+i+')"><i class="fa fa-search"></i>&#128269;</a></td><td>'+p[0]+' '+p[1]+' '+(p[2]?p[2]+' ':'')+p[3]+'</td><td>'+S[p[4]]+'</td><td>'+S[p[5]]+'</td><td>'+S[p[6]]+'</td><td>'+p[7]+'</td>';
+ tb.appendChild(tr);
+});
+function showReport(i){
+ var p=people[i], m=document.getElementById('rptModal'), b=document.getElementById('rptBody');
+ b.innerHTML='<p>Loading...</p>'; m.classList.add('in');
+ setTimeout(function(){
+  var last=p[3].replace(' Jr','');
+  var comment = i===3 ? 'Casey performed well in the course, earning a final grade of (B+).' : p[1]+' performed well throughout the course, earning a final grade of ('+p[7]+').';
+  if (i===5) comment = p[1]+' performed very well, earning a final grade of (A).';
+  b.innerHTML='<h2>'+last+', '+p[1]+(p[2]?' '+p[2]:'')+', '+p[0]+'</h2>'+
+   '<p><strong>Academic Program:</strong> AY2027 Resident Program &nbsp; <strong>Term:</strong> 0</p>'+
+   '<p><strong>Course:</strong> Foundations Theories and Concepts &nbsp; <strong>Seminar:</strong> 1</p>'+
+   '<table><tr><th>Element</th><th>Evaluation</th><th>Evaluator\'s Comments</th></tr>'+
+   '<tr><td>Strategic Thinking</td><td>'+S[p[5]]+'</td><td>Rubric text for strategic thinking at level '+p[5]+'.</td></tr>'+
+   '<tr><td>Writing</td><td>'+S[p[6]]+'</td><td>Rubric text for writing at level '+p[6]+'.</td></tr>'+
+   '<tr><td>Oral</td><td>'+S[p[4]]+'</td><td>Rubric text for oral at level '+p[4]+'.</td></tr>'+
+   '<tr><td>Overall</td><td>'+p[7]+'</td><td>'+comment+'</td></tr></table>'+
+   '<p><strong>Faculty Instructor:</strong> Adair, Pat L COL</p><p><strong>Date:</strong> 16 Sep 2026</p><p><strong>Signature:</strong> //Electronically Approved//</p>';
+ }, 250);
+}
+document.querySelector('.close').onclick=function(){ document.getElementById('rptModal').classList.remove('in'); };
+</script>
+</body></html>
