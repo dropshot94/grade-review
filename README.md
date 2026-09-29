@@ -16,6 +16,17 @@ Nothing goes to a server. The collector only reads pages you can already see. Th
 4. In the collector panel, click **Download for review**, then **Clear saved data**.
 5. Load the file into `grade-review.html`.
 
+## Approve grades (guided)
+
+After your review, use **Approve seminars** in the collector panel, on the page where you pick a seminar.
+
+1. Choose the grade file you reviewed (or the data saved in this browser), then tick the seminars to check.
+2. **Check seminars** reads each seminar's list and compares every student's grade and ratings with your file. It changes nothing. Seminars that match are ticked. Seminars with any difference are not ticked, and the difference is listed (for example a grade corrected after you talked with faculty). Tick one only if you accept the change.
+3. **Open ticked seminars one by one** opens each seminar in the work window, confirms the list still matches the check, and outlines the **Approve** button. **You click Approve.** The tool waits, records the Compass message ("Course approved."), closes that notice, and opens the next seminar. Use **Skip this seminar** or **Stop** at any time.
+4. **Download approval log** saves a CSV: each seminar, whether it was approved, the Compass message, the time, and the grades on the list at approval.
+
+The tool never clicks Approve or Disapprove.
+
 ## What the review page shows
 
 | Tab | Content |

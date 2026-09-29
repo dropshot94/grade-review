@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   var KEY = 'gradeCollector.v1';
-  var VERSION = '5';
+  var VERSION = '6';
   if (window.__gradeCollector) { window.__gradeCollector.show(); return; }
 
   // ---------- storage (this browser only) ----------
@@ -580,8 +580,9 @@
     refresh();
   }
 
-  function showChooser() {
+  function showChooser(mode) {
     if (running) return;
+    mode = mode || 'collect';
     var choices = findLinkGroups(document).concat(findSelects(document));
     choices.sort(function (a, b) { return scoreGroup(b) - scoreGroup(a); });
     var box = panel.querySelector('[data-role="chooser"]');
@@ -593,15 +594,43 @@
       var sample = c.items.slice(0, 3).map(function (x) { return x.text; }).join(', ');
       return (c.kind === 'select' ? 'List "' + c.label + '": ' : 'Links: ') + sample + (c.items.length > 3 ? ', …' : '') + ' (' + c.items.length + ')';
     }
-    box.innerHTML =
-      '<div style="margin:8px 0 4px;font-weight:600">Which seminars?</div>' +
+    var nSaved = Object.keys(load().records).length;
+    box.innerHTML = (mode === 'approve' ?
+      '<div style="margin:8px 0 4px;font-weight:600">1. The grades you reviewed</div>' +
+      '<label style="display:block"><input type="radio" name="gcSrc" value="file" checked> The file you reviewed: <input type="file" data-role="reviewfile" accept=".json,application/json" style="font-size:12px;max-width:100%"></label>' +
+      (nSaved ? '<label style="display:block"><input type="radio" name="gcSrc" value="saved"> Data saved in this browser (' + nSaved + ' students)</label>' : '') +
+      '<label style="display:block"><input type="radio" name="gcSrc" value="skip"> Skip the grade check (not advised)</label>' +
+      '<div data-role="reviewinfo" style="color:#555;font-size:12px;margin:2px 0 6px"></div>' +
+      '<div style="margin:8px 0 4px;font-weight:600">2. Which seminars to check?</div>'
+      : '<div style="margin:8px 0 4px;font-weight:600">Which seminars?</div>') +
       '<select data-role="source" style="width:100%;margin-bottom:6px;font:inherit">' +
       choices.slice(0, 8).map(function (c, i) { return '<option value="' + i + '">' + esc(describe(c)) + '</option>'; }).join('') + '</select>' +
       '<div style="margin-bottom:4px"><a href="#" data-act="all">All</a> · <a href="#" data-act="none">None</a></div>' +
       '<div data-role="items" style="max-height:240px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:4px 6px"></div>' +
-      '<div style="display:flex;gap:6px;margin-top:6px"><button data-act="start" style="' + btn(true) + '">Start</button>' +
+      '<div style="display:flex;gap:6px;margin-top:6px"><button data-act="start" style="' + btn(true) + '">' + (mode === 'approve' ? 'Check seminars' : 'Start') + '</button>' +
       '<button data-act="cancel" style="' + btn() + '">Cancel</button></div>' +
-      '<div style="margin-top:6px;color:#555;font-size:12px">A work window opens over this page. Leave this tab open until it finishes.</div>';
+      '<div style="margin-top:6px;color:#555;font-size:12px">' + (mode === 'approve'
+        ? 'Checking only reads each seminar. You click Approve yourself on the next step.'
+        : 'A work window opens over this page. Leave this tab open until it finishes.') + '</div>';
+    if (mode === 'approve') {
+      var fileInput = box.querySelector('[data-role="reviewfile"]');
+      fileInput.onchange = function () {
+        var f = fileInput.files[0];
+        if (!f) return;
+        var fr = new FileReader();
+        fr.onload = function () {
+          try {
+            var data = JSON.parse(fr.result);
+            reviewedFromFile = buildReviewed(Array.isArray(data) ? data : data.records);
+            box.querySelector('[data-role="reviewinfo"]').textContent = 'Loaded ' + reviewedFromFile.count + ' students from ' + f.name + '.';
+          } catch (e) {
+            reviewedFromFile = null;
+            box.querySelector('[data-role="reviewinfo"]').textContent = 'Could not read that file. Use the "Download for review" file.';
+          }
+        };
+        fr.readAsText(f);
+      };
+    }
     box.style.display = 'block';
     panel.style.width = '380px';
     function fill() {
@@ -617,6 +646,14 @@
       var picked = Array.prototype.filter.call(box.querySelectorAll('[data-i]'), function (x) { return x.checked; })
         .map(function (x) { return c.items[Number(x.getAttribute('data-i'))]; });
       if (!picked.length) { status('Tick at least one seminar.', true); return; }
+      if (mode === 'approve') {
+        var src = (box.querySelector('input[name="gcSrc"]:checked') || {}).value;
+        if (src === 'file' && !reviewedFromFile) { status('Choose the file you reviewed first, or pick another option.', true); return; }
+        reviewed = src === 'file' ? reviewedFromFile : src === 'saved' ? buildReviewed(allRecords()) : null;
+        hideChooser();
+        checkSeminars(c, picked);
+        return;
+      }
       hideChooser();
       collectMany(c, picked);
     };
@@ -627,6 +664,227 @@
     panel.style.width = '340px';
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ---------- guided approval ----------
+  // Check: read each seminar's list and compare it with the grades you reviewed. Read only.
+  // Guide: open each seminar you tick, confirm the list is unchanged, and point to the Approve
+  // button. You click Approve yourself. The tool waits, records what Compass says, closes that
+  // notice, and opens the next seminar. It never clicks Approve or Disapprove.
+  var reviewed = null, reviewedFromFile = null, approvalLog = [], guideAction = null;
+  function normName(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+  function ratingText(cells) {
+    return Object.keys(cells).filter(function (k) { return !/student\s*name|^overall/i.test(k) && k.trim(); })
+      .map(function (k) { return k + ': ' + cells[k]; }).join('; ');
+  }
+  function buildReviewed(records) {
+    var byName = {}, count = 0;
+    (records || []).forEach(function (r) {
+      var cells = r.rowCells || {};
+      var nameKey = Object.keys(cells).find(function (k) { return /student\s*name/i.test(k); });
+      var name = r.rowName || (nameKey ? cells[nameKey] : '');
+      if (!name) return;
+      var gradeKey = Object.keys(cells).find(function (k) { return /^overall/i.test(k); });
+      byName[normName(name)] = { name: name, seminar: r.seminar || '', grade: gradeKey ? cells[gradeKey] : '', ratings: ratingText(cells) };
+      count++;
+    });
+    return { byName: byName, count: count };
+  }
+  function readList(doc) {
+    var rows = [];
+    findGradeTables(doc).forEach(function (t) {
+      t.rows.forEach(function (tr) {
+        var cells = rowRecord(t.names, tr);
+        var nameKey = Object.keys(cells).find(function (k) { return /student\s*name/i.test(k); });
+        var gradeKey = Object.keys(cells).find(function (k) { return /^overall/i.test(k); });
+        rows.push({ name: nameKey ? cells[nameKey] : '', grade: gradeKey ? cells[gradeKey] : '', ratings: ratingText(cells) });
+      });
+    });
+    var lines = (doc.body.innerText || '').split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean);
+    var at = lines.findIndex(function (l) { return /^(section|seminar)\s*:/i.test(l); });
+    return {
+      rows: rows,
+      section: at >= 0 ? lines[at].replace(/^(section|seminar)\s*:\s*/i, '') : '',
+      course: at > 0 ? lines[at - 1] : '',
+      sig: rows.map(function (r) { return normName(r.name) + '=' + r.grade + '|' + r.ratings; }).sort().join('\n')
+    };
+  }
+  function compareToReview(list) {
+    if (!reviewed) return [];
+    var diffs = [], seen = {}, sems = {};
+    list.rows.forEach(function (r) {
+      var rec = reviewed.byName[normName(r.name)];
+      if (!rec) { diffs.push(r.name + ': not in the file you reviewed'); return; }
+      seen[normName(r.name)] = 1;
+      sems[rec.seminar] = (sems[rec.seminar] || 0) + 1;
+      if (rec.grade !== r.grade) diffs.push(r.name + ': grade ' + (rec.grade || 'blank') + ' when you reviewed, now ' + (r.grade || 'blank'));
+      else if (rec.ratings !== r.ratings) diffs.push(r.name + ': element ratings changed since you reviewed');
+    });
+    var sem = Object.keys(sems).sort(function (a, b) { return sems[b] - sems[a]; })[0];
+    if (sem) Object.keys(reviewed.byName).forEach(function (k) {
+      var rec = reviewed.byName[k];
+      if (rec.seminar === sem && !seen[k]) diffs.push(rec.name + ': in the file you reviewed, not on this list');
+    });
+    return diffs;
+  }
+  function approveButton(doc) {
+    var els = doc.querySelectorAll('button, input[type="button"], input[type="submit"], a');
+    var found = [];
+    for (var i = 0; i < els.length; i++) {
+      var t = (txt(els[i]) || els[i].value || '').trim();
+      if (/^approve$/i.test(t) && visible(els[i])) found.push(els[i]);
+    }
+    if (found.length !== 1) return found.length ? { error: 'more than one Approve button' } : null;
+    var b = found[0];
+    return { el: b, disabled: b.disabled || b.getAttribute('aria-disabled') === 'true' || /\bdisabled\b/.test(b.className || '') };
+  }
+  var ALERT_SEL = '.modal, [role="dialog"], [role="alertdialog"], .ui-dialog, .alert, .swal2-popup, .bootbox, .toast';
+  function visibleAlerts(doc) {
+    return Array.prototype.filter.call(doc.querySelectorAll(ALERT_SEL), function (el) { return visible(el) && txt(el); });
+  }
+  function noticeCloser(el) {
+    var box = el.closest('.modal, [role="dialog"], [role="alertdialog"], .ui-dialog, .bootbox, .swal2-popup') || el;
+    var btns = box.querySelectorAll('button, a, input[type="button"]');
+    for (var i = 0; i < btns.length; i++) if (/^(close|ok|okay)$/i.test((txt(btns[i]) || btns[i].value || '').trim())) return btns[i];
+    return null;
+  }
+  function currentOtherSelects(choice) {
+    return findSelects(document).filter(function (s) { return !(choice.kind === 'select' && s.index === choice.index); })
+      .map(function (s) { var el = document.querySelectorAll('select')[s.index]; return { id: s.id, name: s.name, index: s.index, value: el.value }; });
+  }
+
+  async function checkSeminars(choice, items) {
+    if (running) return;
+    running = true; stopFlag = false;
+    var startUrl = location.href, results = [], otherSelects = currentOtherSelects(choice);
+    openHelper();
+    for (var i = 0; i < items.length; i++) {
+      if (stopFlag) break;
+      var item = items[i];
+      status('Checking ' + (i + 1) + ' of ' + items.length + ' (' + item.text + ')\u2026');
+      try {
+        await openChoice(choice, item, startUrl, otherSelects);
+        await sleep(600);
+        var doc = helperDoc(), list = readList(doc), ap = approveButton(doc);
+        results.push({ item: item, list: list, diffs: compareToReview(list),
+          approve: !ap ? 'none' : ap.error ? ap.error : ap.disabled ? 'disabled' : 'ok' });
+      } catch (e) {
+        results.push({ item: item, error: e.message });
+      }
+    }
+    closeHelper();
+    running = false;
+    showCheckResults(choice, results);
+  }
+
+  function showCheckResults(choice, results) {
+    var box = panel.querySelector('[data-role="chooser"]');
+    panel.style.width = '420px';
+    box.style.display = 'block';
+    var ready = results.filter(function (r) { return !r.error && r.approve === 'ok' && !r.diffs.length; }).length;
+    box.innerHTML =
+      '<div style="margin:8px 0 4px;font-weight:600">Ready to approve: ' + ready + ' of ' + results.length + ' seminars</div>' +
+      (reviewed ? '' : '<div style="color:#b00020;margin-bottom:4px">No grade check: you chose to skip it.</div>') +
+      '<div style="color:#555;font-size:12px;margin-bottom:4px">Seminars with changes are not ticked. Tick one only if you accept the changes listed under it.</div>' +
+      '<div data-role="items" style="max-height:300px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:4px 6px">' +
+      results.map(function (r, i) {
+        var can = !r.error && r.approve === 'ok';
+        var tick = can && !r.diffs.length;
+        var head = esc(r.item.text) + (r.list ? ' \u00b7 ' + r.list.rows.length + ' students' : '');
+        var detail;
+        if (r.error) detail = '<span style="color:#b00020">' + esc(r.error) + '</span>';
+        else if (r.approve === 'none') detail = '<span style="color:#b00020">No Approve button. Already approved?</span>';
+        else if (r.approve !== 'ok') detail = '<span style="color:#b00020">Approve button ' + esc(r.approve) + '.</span>';
+        else if (r.diffs.length) detail = '<span style="color:#b00020">' + r.diffs.length + ' change' + (r.diffs.length > 1 ? 's' : '') + ':</span><br>' +
+          r.diffs.slice(0, 6).map(esc).join('<br>') + (r.diffs.length > 6 ? '<br>and ' + (r.diffs.length - 6) + ' more' : '');
+        else detail = reviewed ? 'Matches your review.' : 'Not checked.';
+        return '<label style="display:block;margin:3px 0;padding-bottom:3px;border-bottom:1px solid #eee"><input type="checkbox" data-r="' + i + '"' +
+          (tick ? ' checked' : '') + (can ? '' : ' disabled') + '> <strong>' + head + '</strong><br><span style="font-size:12px">' + detail + '</span></label>';
+      }).join('') + '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:6px"><button data-act="guide-go" style="' + btn(true) + '">Open ticked seminars one by one</button>' +
+      '<button data-act="cancel" style="' + btn() + '">Cancel</button></div>' +
+      '<div style="margin-top:6px;color:#555;font-size:12px">Each seminar opens with its Approve button outlined. You click Approve. The next one opens after Compass confirms.</div>';
+    box.__guide = function () {
+      var picked = Array.prototype.filter.call(box.querySelectorAll('[data-r]'), function (x) { return x.checked; })
+        .map(function (x) { return results[Number(x.getAttribute('data-r'))]; });
+      if (!picked.length) { status('Tick at least one seminar.', true); return; }
+      hideChooser();
+      guideApprovals(choice, picked);
+    };
+    status('Check done. Review the list, then open the seminars.');
+  }
+
+  function showGuideControls(on) {
+    var g = panel.querySelector('[data-role="guide"]');
+    g.style.display = on ? 'flex' : 'none';
+  }
+
+  async function guideApprovals(choice, picked) {
+    if (running) return;
+    running = true; stopFlag = false;
+    var startUrl = location.href, otherSelects = currentOtherSelects(choice), approved = 0, notDone = [];
+    openHelper();
+    showGuideControls(true);
+    for (var i = 0; i < picked.length; i++) {
+      if (stopFlag) break;
+      var r = picked[i];
+      var entry = { seminar: r.item.text, section: r.list.section, course: r.list.course, students: r.list.rows.length,
+        grades: r.list.rows.map(function (x) { return x.name + ': ' + x.grade; }), time: '', result: '', approved: false };
+      var label = 'Seminar ' + (i + 1) + ' of ' + picked.length + ' (' + r.item.text + '). ';
+      status(label + 'Opening\u2026');
+      try {
+        await openChoice(choice, r.item, startUrl, otherSelects);
+        await sleep(600);
+        var doc = helperDoc(), now = readList(doc);
+        if (now.sig !== r.list.sig) throw new Error('The list changed since the check. Skipped.');
+        var ap = approveButton(doc);
+        if (!ap || ap.error || ap.disabled) throw new Error('No usable Approve button. Skipped.');
+        ap.el.style.outline = '4px solid #f0a500';
+        ap.el.style.outlineOffset = '3px';
+        ap.el.scrollIntoView({ block: 'center' });
+        var before = visibleAlerts(doc).map(txt);
+        guideAction = null;
+        status(label + 'The list matches the check (' + now.rows.length + ' students). Click Approve in the work window, or Skip.');
+        // Wait for you: a new Compass notice, a new page, Skip, or Stop.
+        var result = null;
+        while (!result && !stopFlag && guideAction !== 'skip') {
+          await sleep(300);
+          var d;
+          try { d = helperDoc(); } catch (e) { continue; }
+          var fresh = visibleAlerts(d).filter(function (el) { return before.indexOf(txt(el)) < 0 && /approv|error|fail|unable|denied|not /i.test(txt(el)); });
+          if (fresh.length) result = { el: fresh[0], text: txt(fresh[0]) };
+        }
+        if (!result) throw new Error(stopFlag ? 'Stopped before approval.' : 'Skipped by you.');
+        entry.time = new Date().toISOString();
+        entry.result = result.text.replace(/\s+/g, ' ').replace(/^my tasks alert\s*/i, '').replace(/\s*close$/i, '').slice(0, 200);
+        entry.approved = /approved/i.test(result.text) && !/disapprov|not approved|error|fail|unable|denied/i.test(result.text);
+        // Close Compass's notice so the next seminar can open.
+        var c = noticeCloser(result.el);
+        if (c) c.click();
+        await sleep(500);
+        if (entry.approved) approved++; else notDone.push(r.item.text + ': ' + entry.result);
+      } catch (e) {
+        entry.time = entry.time || new Date().toISOString();
+        entry.result = e.message;
+        notDone.push(r.item.text + ': ' + e.message);
+      }
+      approvalLog.push(entry);
+      try { localStorage.setItem(KEY + '.approvals', JSON.stringify(approvalLog)); } catch (e) { /* memory only */ }
+    }
+    showGuideControls(false);
+    closeHelper();
+    running = false;
+    status((stopFlag ? 'Stopped. ' : 'Done. ') + approved + ' of ' + picked.length + ' seminars approved.' +
+      (notDone.length ? ' Not approved: ' + notDone.map(function (x) { return x.replace(/\.+$/, ''); }).join('; ') + '.' : '') + ' Click Download approval log for a record.', notDone.length > 0);
+    panel.querySelector('[data-act="approvallog"]').style.display = '';
+  }
+  function downloadApprovalLog() {
+    if (!approvalLog.length) { try { approvalLog = JSON.parse(localStorage.getItem(KEY + '.approvals') || '[]'); } catch (e) { /* ignore */ } }
+    if (!approvalLog.length) { status('No approvals logged yet.', true); return; }
+    var rows = [['Seminar', 'Section', 'Course', 'Students', 'Approved', 'Compass message', 'Time', 'Grades at approval']].concat(approvalLog.map(function (e) {
+      return [e.seminar, e.section, e.course, e.students, e.approved ? 'Yes' : 'No', e.result, e.time, e.grades.join('; ')];
+    }));
+    download('compass-approvals-' + stamp() + '.csv', rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n'), 'text/csv');
+  }
 
   // ---------- downloads ----------
   function download(name, text, type) {
@@ -730,11 +988,14 @@
     '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
     '<button data-act="collect" style="' + btn(true) + '">Collect this page</button>' +
     '<button data-act="many" style="' + btn(true) + '">Collect many seminars</button>' +
+    '<button data-act="approve" style="' + btn(true) + ';background:#1b6e3a;border-color:#1b6e3a">Approve seminars</button>' +
     '<button data-act="stop" style="' + btn() + '">Stop</button>' +
     '<button data-act="json" style="' + btn() + '">Download for review</button>' +
     '<button data-act="csv" style="' + btn() + '">Download CSV</button>' +
     '<button data-act="clear" style="' + btn() + '">Clear saved data</button>' +
-    '<button data-act="diag" style="' + btn() + '">Structure file</button></div>' +
+    '<button data-act="diag" style="' + btn() + '">Structure file</button>' +
+    '<button data-act="approvallog" style="' + btn() + ';display:none">Download approval log</button></div>' +
+    '<div data-role="guide" style="display:none;gap:6px;margin-top:8px"><button data-act="guide-skip" style="' + btn() + '">Skip this seminar</button></div>' +
     '<div data-role="chooser" style="display:none"></div>' +
     '<div style="margin-top:8px;color:#555;font-size:12px">Data stays in this browser. Nothing is sent anywhere. Clear saved data when you finish.</div>';
   function btn(primary) {
@@ -758,7 +1019,11 @@
     if (e.target.tagName === 'A') e.preventDefault();
     var box = panel.querySelector('[data-role="chooser"]');
     if (act === 'collect') collectThisPage();
-    else if (act === 'many') showChooser();
+    else if (act === 'many') showChooser('collect');
+    else if (act === 'approve') showChooser('approve');
+    else if (act === 'guide-go') box.__guide();
+    else if (act === 'guide-skip') guideAction = 'skip';
+    else if (act === 'approvallog') downloadApprovalLog();
     else if (act === 'start') box.__start();
     else if (act === 'cancel') hideChooser();
     else if (act === 'all' || act === 'none') box.querySelectorAll('[data-i]').forEach(function (x) { x.checked = act === 'all'; });

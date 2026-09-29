@@ -6,7 +6,7 @@
 //     and renders every tab.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
-import { readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { extname, join, normalize } from 'node:path';
 
@@ -115,6 +115,54 @@ check(seminarsOf(r.got) === '4,5' && r.got.length === 20, 'click run: ' + semina
 r = await runMany(base + 'test/mock-menu.html', /^Links: Seminar 10 \u00b7 AA2200Foundations/);
 console.log('icon buttons in a table:', r.msg);
 check(seminarsOf(r.got) === '10,11,12' && r.got.length === 30, 'icon run: ' + seminarsOf(r.got) + ' / ' + r.got.length);
+
+// ---- 2b. Guided approval. The "reviewed" file has one grade in seminar 11 that differs from Compass. ----
+{
+  const reviewedRecs = JSON.parse(JSON.stringify(r.got));
+  const changed = reviewedRecs.find(x => x.seminar === '11');
+  changed.rowCells.Overall = changed.rowCells.Overall === 'A-' ? 'B+' : 'A-';
+  const reviewedFile = out + 'reviewed-test.json';
+  writeFileSync(reviewedFile, JSON.stringify({ format: 'compass-grade-export', version: 1, records: reviewedRecs }));
+  const p = await ctx.newPage();
+  p.on('pageerror', e => errors.push(e.message));
+  await p.goto(base + 'test/mock-menu.html');
+  await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('mockApproval')).forEach(k => localStorage.removeItem(k)));
+  await p.waitForSelector('#tasks tbody tr');
+  await p.addScriptTag({ content: collectorSrc });
+  await p.getByRole('button', { name: 'Approve seminars' }).click();
+  await p.setInputFiles('[data-role="reviewfile"]', reviewedFile);
+  await p.getByText('Loaded 30 students').waitFor();
+  const src = p.locator('[data-role="source"]');
+  const labels = await src.locator('option').allInnerTexts();
+  await src.selectOption(String(labels.findIndex(l => /^Links: Seminar 10 ·/.test(l))));
+  await p.getByRole('button', { name: 'Check seminars' }).click();
+  await p.getByText('Check done.').waitFor({ timeout: 60000 });
+  await p.screenshot({ path: out + 'approve-check.png' });
+  const ticks = await p.locator('[data-r]').evaluateAll(els => els.map(e => e.checked));
+  check(JSON.stringify(ticks) === '[true,false,true]', 'check: expected seminars 10 and 12 ticked, 11 not; got ' + JSON.stringify(ticks));
+  check(await p.getByText('when you reviewed, now').count() === 1, 'check: the changed grade is not listed');
+  const approvals = () => p.evaluate(() => Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith('mockApproval')).map(k => [k.split('|')[2], localStorage.getItem(k)])));
+
+  await p.getByRole('button', { name: 'Open ticked seminars one by one' }).click();
+  const frame = p.frameLocator('iframe[title="Grade collector work window"]');
+  // Seminar 10: the tool must wait for the user. Then the user clicks Approve.
+  await p.getByText(/Seminar 1 of 2 .*Click Approve in the work window/).waitFor({ timeout: 60000 });
+  await p.waitForTimeout(3000);
+  check(Object.keys(await approvals()).length === 0, 'the tool approved without the user');
+  await p.screenshot({ path: out + 'approve-guide.png' });
+  await frame.getByRole('button', { name: 'Approve', exact: true }).click();
+  // Seminar 12: the user skips it.
+  await p.getByText(/Seminar 2 of 2 .*Click Approve in the work window/).waitFor({ timeout: 60000 });
+  await p.getByRole('button', { name: 'Skip this seminar' }).click();
+  const msg = await waitDone(p);
+  console.log('guided approval:', msg);
+  const st = await approvals();
+  check(JSON.stringify(st) === JSON.stringify({ 10: 'Approved' }), 'approval state wrong: ' + JSON.stringify(st));
+  check(/1 of 2 seminars approved/.test(msg), 'approval message: ' + msg);
+  const log = readFileSync(await download(p, 'Download approval log'), 'utf8');
+  check(/Seminar 10[^\n]*,Yes,Course approved\./.test(log) && /Seminar 12[^\n]*,No,Skipped by you\./.test(log), 'approval log:\n' + log);
+  await p.close();
+}
 
 r = await runMany(base + 'test/mock-menu.html', /^Links: AA2300Theory/);
 console.log('rows with the same name:', r.msg);
