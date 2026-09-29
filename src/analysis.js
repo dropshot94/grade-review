@@ -10,9 +10,14 @@ export const GRADE_POINTS = {
 export const GRADE_BUCKETS = ['A', 'A-', 'B+', 'B', 'B- or lower'];
 
 export const RATING_LABELS = {
-  4: 'Distinguished', 3: 'Superior', 2: 'Standards', 1: 'Below standards', 0: 'Failed',
+  4: 'Distinguished', 3: 'Superior', 2: 'Standards', 1: 'Below standards', 0: 'Did not meet standards',
 };
-export const RATING_SHORT = { 4: 'Dist', 3: 'Sup', 2: 'Std', 1: 'Below', 0: 'Fail' };
+export const RATING_SHORT = { 4: 'Dist', 3: 'Sup', 2: 'Std', 1: 'Below', 0: 'DNM' };
+
+// Pass/fail results (for example International Fellows). Not letter grades, and not errors.
+export function isPassFail(g) {
+  return /^(PASS|P|FAIL|PASSED|FAILED|SATISFACTORY|UNSATISFACTORY|S|U)$/.test(normGrade(g)) && normGrade(g) !== 'F';
+}
 
 export const DEFAULT_SETTINGS = {
   seminarThreshold: 0.15,     // grade points between a seminar and the rest of the course
@@ -182,6 +187,7 @@ export function normalizeRecord(raw) {
     elements: elements.map(e => ({ ...e, score: ratingScore(e.rating) })),
     grade,
     points: gradePoints(grade),
+    passFail: isPassFail(grade),
     overallComment: overall ? overall.comment : '',
     warnings,
     collectedAt: raw.collectedAt || '',
@@ -297,7 +303,7 @@ export function analyze(records, userSettings) {
     for (const r of recs) {
       const base = { course: courseName, seminar: r.seminar, keys: [r.key], type: 'data' };
       if (!r.grade) addFlag({ ...base, severity: 'high', title: 'No overall grade', detail: 'The report has no overall grade.' });
-      else if (r.points == null) addFlag({ ...base, severity: 'high', title: `Unrecognized grade "${r.grade}"`, detail: 'The tool cannot place this grade on the A to F scale.' });
+      else if (r.points == null && !r.passFail) addFlag({ ...base, severity: 'high', title: `Unrecognized grade "${r.grade}"`, detail: 'The tool cannot place this grade on the A to F scale.' });
       const unknown = r.elements.filter(e => e.score == null);
       if (unknown.length) {
         addFlag({ ...base, severity: 'medium', title: 'Missing or unrecognized rating',
@@ -475,7 +481,7 @@ export function analyze(records, userSettings) {
 
       const stated = statedGrades(r.overallComment);
       const wrong = stated.filter(g => g !== r.grade);
-      if (r.grade && wrong.length) {
+      if (r.grade && wrong.length && !r.passFail) {
         addFlag({ ...base, type: 'comment-grade', severity: 'high',
           title: `Comment says ${wrong[0]}, grade is ${r.grade}`,
           detail: `The overall comment states a final grade of ${wrong.join(', ')}, but the recorded grade is ${r.grade}.` });
