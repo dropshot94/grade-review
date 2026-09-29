@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   var KEY = 'gradeCollector.v1';
-  var VERSION = '4';
+  var VERSION = '5';
   if (window.__gradeCollector) { window.__gradeCollector.show(); return; }
 
   // ---------- storage (this browser only) ----------
@@ -195,6 +195,56 @@
   }
 
   // ---------- read every student on one list ----------
+  function reportHidden(getDoc) { var r = findReport(getDoc()); return !r || !visible(r.table); }
+  // Wait until the report text stops changing.
+  async function settle(rep) {
+    var last = '', same = 0;
+    for (var k = 0; k < 20 && same < 2; k++) {
+      await sleep(150);
+      var now = txt(rep.root);
+      same = now === last ? same + 1 : 0;
+      last = now;
+    }
+  }
+  // Open one student's report and read it. Try twice: once more if the report does not open,
+  // or opens without its header (student name, course, seminar).
+  async function readOne(job, rowName, prevText, getDoc, msg) {
+    var ln = lastNameOf(rowName);
+    var best = null;
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      if (attempt > 1) {
+        status(msg + ' (trying again)');
+        var o = findReport(getDoc());
+        if (o) { closeReport(o); await waitFor(function () { return reportHidden(getDoc); }, 4000); }
+        await sleep(1500);
+      }
+      clickTarget(job.tr).click();
+      var rep = await waitFor(function () {
+        var r = findReport(getDoc());
+        if (!r) return null;
+        var t = txt(r.root);
+        if (t === prevText || !/Faculty Instructor/i.test(t)) return null;
+        return r;
+      }, attempt === 1 ? 15000 : 25000);
+      if (!rep) continue;
+      await settle(rep);
+      // The header can load after the body. Give it a few seconds.
+      await waitFor(function () {
+        var t = txt(rep.root).toLowerCase();
+        return (!ln || t.indexOf(ln) >= 0) && /course\s*:\s*\S/.test(t) ? true : null;
+      }, 6000);
+      await settle(rep);
+      var text = txt(rep.root);
+      var parsed = parseReport(rep);
+      var complete = parsed.elements.length > 0 && !!parsed.course && (!ln || text.toLowerCase().indexOf(ln) >= 0);
+      best = { parsed: parsed, text: text, attempts: attempt };
+      closeReport(rep);
+      await waitFor(function () { return reportHidden(getDoc); }, 4000);
+      if (complete) return best;
+    }
+    return best;
+  }
+
   var stopFlag = false, running = false;
 
   // getDoc returns the document that holds the student list (this page, or the work window).
@@ -217,33 +267,18 @@
       status(label + 'Reading ' + (i + 1) + ' of ' + jobs.length + ': ' + rowName);
       var rec = { collectedAt: new Date().toISOString(), page: doc.location ? doc.location.pathname : '', rowName: rowName, rowCells: cells, warnings: [] };
 
-      clickTarget(job.tr).click();
-      var rep = await waitFor(function () {
-        var r = findReport(getDoc());
-        if (!r) return null;
-        var t = txt(r.root);
-        if (t === prevText || !/Faculty Instructor/i.test(t)) return null;
-        return r;
-      }, 15000);
-      if (rep) {
-        // Let content finish loading: wait until the text stops changing.
-        var last = '', same = 0;
-        for (var k = 0; k < 20 && same < 2; k++) {
-          await sleep(150);
-          var now = txt(rep.root);
-          same = now === last ? same + 1 : 0;
-          last = now;
-        }
-        prevText = txt(rep.root);
-        var parsed = parseReport(rep);
-        Object.keys(parsed).forEach(function (k2) { rec[k2] = parsed[k2]; });
+      var got = await readOne(job, rowName, prevText, getDoc, label + 'Reading ' + (i + 1) + ' of ' + jobs.length + ': ' + rowName);
+      if (got) {
+        prevText = got.text;
+        Object.keys(got.parsed).forEach(function (k2) { rec[k2] = got.parsed[k2]; });
+        if (got.attempts > 1) rec.attempts = got.attempts;
         var ln = lastNameOf(rowName);
-        if (ln && prevText.toLowerCase().indexOf(ln) < 0) rec.warnings.push('The report did not show the name "' + rowName + '". It may belong to another student.');
-        if (!parsed.elements.length) rec.warnings.push('Could not read the element table in the report.');
-        closeReport(rep);
-        await waitFor(function () { var r2 = findReport(getDoc()); return !r2 || !visible(r2.table); }, 4000);
+        if (ln && got.text.toLowerCase().indexOf(ln) < 0) rec.warnings.push('The report did not show the name "' + rowName + '". It may belong to another student.');
+        else if (!got.parsed.course) rec.warnings.push('The report opened, but its course and seminar did not load.');
+        if (!got.parsed.elements.length) rec.warnings.push('Could not read the element table in the report.');
+        if (rec.warnings.length) problems++;
       } else {
-        rec.warnings.push('The report did not open. Only the student list row was saved.');
+        rec.warnings.push('The report did not open after two tries. Only the student list row was saved.');
         problems++;
       }
       var id = [rec.course || '', rec.seminar || '', rowName].join('|').toLowerCase();
@@ -528,7 +563,7 @@
         if (res.noTable) issues.push(item.text + ': no student list');
         else {
           students += res.ok;
-          if (res.problems) issues.push(item.text + ': ' + res.problems + ' reports did not open');
+          if (res.problems) issues.push(item.text + ': ' + res.problems + ' reports with problems');
         }
         done++;
       } catch (e) {

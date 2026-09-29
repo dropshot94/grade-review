@@ -235,6 +235,7 @@ function renderCourseOverview(course) {
       <div class="kpi"><div class="v">${course.seminars.length}</div><div class="l">seminars</div></div>
       <div class="kpi"><div class="v">${fmt(course.mean)}</div><div class="l">mean grade points (${letterFor(course.mean)})</div></div>
       <div class="kpi"><div class="v">${pct(aShare)}</div><div class="l">A or A-</div></div>
+      ${course.records.some(r => r.passFail) ? `<div class="kpi"><div class="v">${course.records.filter(r => r.passFail).length}</div><div class="l">pass/fail (not in means)</div></div>` : ''}
       <div class="kpi"><div class="v">${flags.filter(f => f.severity === 'high').length}</div><div class="l">high flags</div></div>
       <div class="kpi"><div class="v">${reviewed} / ${course.seminars.length}</div><div class="l">seminars reviewed</div></div>
     </div>

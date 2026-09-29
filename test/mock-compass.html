@@ -38,23 +38,33 @@ people.forEach(function(p,i){
  tr.innerHTML='<td><a href="javascript:void(0)" onclick="showReport('+i+')"><i class="fa fa-search"></i>&#128269;</a></td><td>'+p[0]+' '+p[1]+' '+(p[2]?p[2]+' ':'')+p[3]+'</td><td>'+S[p[4]]+'</td><td>'+S[p[5]]+'</td><td>'+S[p[6]]+'</td><td>'+p[7]+'</td>';
  tb.appendChild(tr);
 });
-function showReport(i){
- var p=people[i], m=document.getElementById('rptModal'), b=document.getElementById('rptBody');
- b.innerHTML='<p>Loading...</p>'; m.classList.add('in');
- setTimeout(function(){
-  var last=p[3].replace(' Jr','');
+// Test switches: ?flaky=N (first click on row N does nothing), ?late=N (row N's header fills in
+// 2.5 s after the body), ?stuck=N (row N's header never loads on the first open).
+var clicks={};
+function reportHtml(i, header){
+  var p=people[i], last=p[3].replace(' Jr','');
   var comment = i===3 ? 'Casey performed well in the course, earning a final grade of (B+).' : p[1]+' performed well throughout the course, earning a final grade of ('+p[7]+').';
   if (i===5) comment = p[1]+' performed very well, earning a final grade of (A).';
-  b.innerHTML='<h2>'+last+', '+p[1]+(p[2]?' '+p[2]:'')+', '+p[0]+'</h2>'+
-   '<p><strong>Academic Program:</strong> AY2027 Resident Program &nbsp; <strong>Term:</strong> 0</p>'+
-   '<p><strong>Course:</strong> '+COURSE+' &nbsp; <strong>Seminar:</strong> '+SEM+'</p>'+
+  return '<h2>'+(header?last+', '+p[1]+(p[2]?' '+p[2]:'')+', '+p[0]:'')+'</h2>'+
+   '<p><strong>Academic Program:</strong> '+(header?'AY2027 Resident Program':'')+' &nbsp; <strong>Term:</strong> '+(header?'0':'')+'</p>'+
+   '<p><strong>Course:</strong> '+(header?COURSE:'')+' &nbsp; <strong>Seminar:</strong> '+(header?SEM:'')+'</p>'+
    '<table><tr><th>Element</th><th>Evaluation</th><th>Evaluator\'s Comments</th></tr>'+
    '<tr><td>Strategic Thinking</td><td>'+S[p[5]]+'</td><td>Rubric text for strategic thinking at level '+p[5]+'.</td></tr>'+
    '<tr><td>Writing</td><td>'+S[p[6]]+'</td><td>Rubric text for writing at level '+p[6]+'.</td></tr>'+
    '<tr><td>Oral</td><td>'+S[p[4]]+'</td><td>Rubric text for oral at level '+p[4]+'.</td></tr>'+
    '<tr><td>Overall</td><td>'+p[7]+'</td><td>'+comment+'</td></tr></table>'+
-   '<p><strong>Faculty Instructor:</strong> Adair, Pat L COL</p><p><strong>Date:</strong> 16 Sep 2026</p><p><strong>Signature:</strong> //Electronically Approved//</p>';
- }, 250);
+   '<p><strong>Faculty Instructor:</strong> '+(header?'Adair, Pat L COL':'')+'</p><p><strong>Date:</strong> '+(header?'16 Sep 2026':'')+'</p><p><strong>Signature:</strong> //Electronically Approved//</p>';
+}
+function showReport(i){
+  clicks[i]=(clicks[i]||0)+1;
+  if (q.get('flaky')===String(i) && clicks[i]===1) return;
+  var m=document.getElementById('rptModal'), b=document.getElementById('rptBody');
+  b.innerHTML='<p>Loading...</p>'; m.classList.add('in');
+  var partial = (q.get('late')===String(i)) || (q.get('stuck')===String(i) && clicks[i]===1);
+  setTimeout(function(){
+    b.innerHTML=reportHtml(i, !partial);
+    if (q.get('late')===String(i)) setTimeout(function(){ if (m.classList.contains('in')) b.innerHTML=reportHtml(i, true); }, 2500);
+  }, 250);
 }
 document.querySelector('.close').onclick=function(){ document.getElementById('rptModal').classList.remove('in'); };
 </script>

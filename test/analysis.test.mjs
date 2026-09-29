@@ -164,3 +164,15 @@ test('csv export escapes and guards formulas', () => {
   const csv = toCsv([r], new Map());
   assert.ok(csv.includes(`"'=HYPERLINK(""x"") said ""hi"", then left"`));
 });
+
+test('pass/fail grades are not errors', () => {
+  const [r] = seminar([['COL', 'Avery', 'Stanton', 'S', 'S', 'S', 'PASS', 'If graded, Avery would have earned a final grade of (B+).']]);
+  assert.equal(r.passFail, true);
+  assert.equal(r.points, null);
+  const { flags } = analyze([r]);
+  assert.ok(!flags.some(f => f.type === 'data' && /Unrecognized grade/.test(f.title)));
+  assert.ok(!flags.some(f => f.type === 'comment-grade'));
+  const [f] = seminar([['LTC', 'Jordan', 'Hale', 'S', 'S', 'S', 'F']]);
+  assert.equal(f.passFail, false);
+  assert.equal(f.points, 0);
+});

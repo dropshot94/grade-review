@@ -63,6 +63,18 @@ for (const r of recs) {
 page.once('dialog', d => d.accept());
 await page.getByRole('button', { name: 'Clear saved data' }).click();
 
+// ---- 1b. Slow Compass: a report that does not open, one whose header loads late, one whose header never loads the first time ----
+await page.goto(base + 'test/mock-compass.html?flaky=2&late=4&stuck=6');
+await page.addScriptTag({ content: collectorSrc });
+await page.getByRole('button', { name: 'Collect this page' }).click();
+console.log('slow page:', await waitDone(page));
+const slow = JSON.parse(readFileSync(await download(page, 'Download for review'), 'utf8')).records;
+check(slow.length === 10, 'slow: expected 10 records, got ' + slow.length);
+for (const r of slow) check(!r.warnings.length && r.course && r.seminar === '1' && r.faculty, 'slow: problem with ' + r.rowName + ': ' + r.warnings.join(';'));
+check(slow.filter(r => r.attempts === 2).length === 2, 'slow: expected two retried reports');
+page.once('dialog', d => d.accept());
+await page.getByRole('button', { name: 'Clear saved data' }).click();
+
 // ---- 2. Many seminars from the picker ----
 async function runMany(menuUrl, sourceMatch, prep) {
   const p = await ctx.newPage();

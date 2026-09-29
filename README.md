@@ -11,7 +11,7 @@ Nothing goes to a server. The collector only reads pages you can already see. Th
 
 1. Download `grade-review.html` and open it (double-click).
 2. Drag the **Collect grades** button to your bookmarks bar. If your browser blocks bookmarklets, use **copy the collector code**, then paste it into the browser console (F12) on the Compass page.
-3. In Compass, open the Director Dashboard page where you pick a seminar. Click **Collect grades**, then **Collect many seminars**. The panel lists the seminar links or drop-down lists it found on the page. Tick the seminars and click **Start**. A work window opens over the page and reads every report in each seminar. Leave the tab open until the panel says Done. (If Compass refuses to load inside the page, the collector uses a pop-up window instead. Allow pop-ups for Compass if the browser asks.)
+3. In Compass, open the Director Dashboard page where you pick a seminar. Click **Collect grades**, then **Collect many seminars**. The panel lists the seminar links or drop-down lists it found on the page. Tick the seminars and click **Start**. A work window opens over the page and reads every report in each seminar. Leave the tab open until the panel says Done. If a report does not open, or opens without its header, the collector closes it and tries once more. (If Compass refuses to load inside the page, the collector uses a pop-up window instead. Allow pop-ups for Compass if the browser asks.)
    - To read only the seminar on screen, open its student list and click **Collect this page**.
 4. In the collector panel, click **Download for review**, then **Clear saved data**.
 5. Load the file into `grade-review.html`.
@@ -39,6 +39,8 @@ Nothing goes to a server. The collector only reads pages you can already see. Th
 | Grades out of line with ratings | Check | For the same element ratings, the seminar gives grades higher or lower than other seminars (default 0.15 points). Separates a strong seminar from lenient grading. |
 | Low performance | Check | Grade at or below B- (settable) or any element below standards. High if in more than one course. |
 | Data problems | High to Note | Missing grade or rating, dashboard and report disagree, no faculty name, no signature. |
+
+PASS or FAIL results (for example International Fellows) count as pass/fail. They are left out of grade means and do not raise flags.
 
 The thresholds are under **Flags > Thresholds**.
 
