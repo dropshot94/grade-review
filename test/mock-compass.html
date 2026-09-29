@@ -7,10 +7,19 @@
 <body>
 <p><a href="mock-menu.html">Back to seminar list</a> <a href="mock-menu.html?help=1">Help</a></p>
 <!-- Made-up students. Layout mirrors the Compass Director Dashboard and its Course Evaluation Report modal. -->
+<h3 id="courseTitle"></h3>
+<div>Section: <span id="sectionNo"></span></div>
+<div>Faculty Instructor(s): Adair, Pat L COL</div>
 <table id="grades" class="table">
  <thead><tr><th></th><th>Student Name</th><th>Oral</th><th>Strategic Thinking</th><th>Writing</th><th>Overall</th></tr></thead>
  <tbody></tbody>
 </table>
+<div id="approveBar" style="text-align:right;padding:8px"></div>
+<div class="modal fade" id="alertModal" role="dialog"><div class="modal-dialog"><div class="modal-content">
+ <div class="modal-header"><h4 class="modal-title">My Tasks Alert</h4></div>
+ <div class="modal-body"><div class="alert alert-success" id="alertText"></div></div>
+ <div class="modal-footer"><button type="button" class="btn btn-default" id="alertClose">Close</button></div>
+</div></div></div>
 <div class="modal fade" id="rptModal" role="dialog"><div class="modal-dialog"><div class="modal-content">
  <div class="modal-header"><h4 class="modal-title">Course Evaluation Report</h4><button type="button" class="close" data-dismiss="modal">&times;</button></div>
  <div class="modal-body" id="rptBody"></div>
@@ -66,6 +75,26 @@ function showReport(i){
     if (q.get('late')===String(i)) setTimeout(function(){ if (m.classList.contains('in')) b.innerHTML=reportHtml(i, true); }, 2500);
   }, 250);
 }
-document.querySelector('.close').onclick=function(){ document.getElementById('rptModal').classList.remove('in'); };
+// Approval, as on the real page: Approve / Disapprove at the bottom, then a "My Tasks Alert".
+document.getElementById('courseTitle').textContent = COURSE;
+document.getElementById('sectionNo').textContent = SEM;
+var AKEY = 'mockApproval|' + COURSE + '|' + SEM;
+function renderApproveBar(){
+  var bar = document.getElementById('approveBar'), st = localStorage.getItem(AKEY);
+  if (st) { bar.textContent = 'Status: ' + st; return; }
+  bar.innerHTML = '<button type="button" class="btn btn-primary" id="btnApprove">Approve</button> <button type="button" class="btn btn-default" id="btnDisapprove">Disapprove</button>';
+  document.getElementById('btnApprove').onclick = function(){ decide('Approved', 'Course approved.'); };
+  document.getElementById('btnDisapprove').onclick = function(){ decide('Disapproved', 'Course disapproved.'); };
+}
+function decide(state, msg){
+  setTimeout(function(){
+    localStorage.setItem(AKEY, state);
+    document.getElementById('alertText').textContent = msg;
+    document.getElementById('alertModal').classList.add('in');
+  }, 400);
+}
+document.getElementById('alertClose').onclick = function(){ document.getElementById('alertModal').classList.remove('in'); renderApproveBar(); };
+renderApproveBar();
+document.querySelector('#rptModal .close').onclick=function(){ document.getElementById('rptModal').classList.remove('in'); };
 </script>
 </body></html>
