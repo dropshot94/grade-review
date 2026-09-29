@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   var KEY = 'gradeCollector.v1';
-  var VERSION = '3';
+  var VERSION = '4';
   if (window.__gradeCollector) { window.__gradeCollector.show(); return; }
 
   // ---------- storage (this browser only) ----------
@@ -304,14 +304,16 @@
     var tr = el.closest('tr');
     if (tr && (own.length < 4 || /^(edit|view|open|select|go|details?)$/i.test(own))) {
       var cells = cellsOf(tr), heads = headerNames(tr.closest('table'));
-      var sem = '', course = '';
+      var sem = '', course = '', shortVal = '';
       cells.forEach(function (c, i) {
         if (c.contains(el)) return;
         var h = heads[i] || '', v = txt(c);
         if (!v) return;
-        if (/semin/i.test(h) && !sem) sem = 'Seminar ' + v;
-        else if (/course/i.test(h) && !course) course = v;
+        if (!sem && /semin|\bsem\b|section|group|^#$|^no\.?$/i.test(h)) sem = (/semin/i.test(h) || /^#$|^no\.?$|^sem$/i.test(h) ? 'Seminar ' : h + ' ') + v;
+        else if (!course && /course/i.test(h)) course = v;
+        else if (!shortVal && /^[A-Za-z]?\d{1,3}[A-Za-z]?$/.test(v)) shortVal = 'Seminar ' + v;
       });
+      sem = sem || shortVal;
       if (sem || course) return [sem, course].filter(Boolean).join(' \u00b7 ');
       var rowText = cells.filter(function (c) { return !c.contains(el); }).map(txt).filter(Boolean).join(' \u00b7 ');
       if (rowText) return rowText.slice(0, 100);
@@ -332,7 +334,9 @@
       if (!groups[info.sig]) { groups[info.sig] = []; order.push(info.sig); }
       var g = groups[info.sig];
       if (info.url && g.some(function (x) { return x.url === info.url; })) continue;
-      g.push({ text: text, url: info.url, index: g.length });
+      // occ: which one of several choices with the same name (0 for the first).
+      var occ = g.filter(function (x) { return x.text === text; }).length;
+      g.push({ text: text, url: info.url, index: g.length, occ: occ });
     }
     return order.filter(function (s) { return groups[s].length >= 2; }).map(function (s) {
       return { kind: 'links', sig: s, items: groups[s] };
@@ -465,12 +469,20 @@
       await helperGo(startUrl);
       var d = helperDoc();
       if (choice.kind === 'links') {
-        var el = null, els = d.querySelectorAll(CHOICE_SEL);
-        for (var i = 0; i < els.length && !el; i++) {
-          var info = linkInfo(els[i], d);
-          if (info && info.sig === choice.sig && visible(els[i]) && labelFor(els[i]) === item.text) el = els[i];
-        }
-        if (!el) throw new Error('Could not find "' + item.text + '" after reloading the page.');
+        // The list may fill in after the page loads, so keep looking for a while.
+        var similar = 0;
+        var el = await waitFor(function () {
+          var doc = helperDoc(), els = doc.querySelectorAll(CHOICE_SEL), same = [];
+          similar = 0;
+          for (var i = 0; i < els.length; i++) {
+            var info = linkInfo(els[i], doc);
+            if (!info || info.sig !== choice.sig) continue;
+            similar++;
+            if (labelFor(els[i]) === item.text) same.push(els[i]);
+          }
+          return same[item.occ || 0] || null;
+        }, 20000);
+        if (!el) throw new Error('Could not find "' + item.text + '" after reloading the page (' + similar + ' similar buttons there).');
         await helperAct(function () { el.click(); });
       } else {
         // Copy the other drop-down values from this page, then pick the item.

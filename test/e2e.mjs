@@ -68,6 +68,8 @@ async function runMany(menuUrl, sourceMatch, prep) {
   const p = await ctx.newPage();
   p.on('pageerror', e => errors.push(e.message));
   await p.goto(menuUrl);
+  await p.waitForSelector('#tasks tbody tr');
+  await p.waitForSelector('#tasks2 tbody tr');
   if (prep) await prep(p);
   await p.addScriptTag({ content: collectorSrc });
   await p.getByRole('button', { name: 'Collect many seminars' }).click();
@@ -101,6 +103,10 @@ check(seminarsOf(r.got) === '4,5' && r.got.length === 20, 'click run: ' + semina
 r = await runMany(base + 'test/mock-menu.html', /^Links: Seminar 10 \u00b7 AA2200Foundations/);
 console.log('icon buttons in a table:', r.msg);
 check(seminarsOf(r.got) === '10,11,12' && r.got.length === 30, 'icon run: ' + seminarsOf(r.got) + ' / ' + r.got.length);
+
+r = await runMany(base + 'test/mock-menu.html', /^Links: AA2300Theory/);
+console.log('rows with the same name:', r.msg);
+check(seminarsOf(r.got) === '13,14' && r.got.length === 20, 'same-name run: ' + seminarsOf(r.got) + ' / ' + r.got.length);
 
 r = await runMany(base + 'test/mock-menu.html', /^List "Seminar"/, p => p.selectOption('#course', 'Strategic Leadership'));
 console.log('drop-down:', r.msg);
