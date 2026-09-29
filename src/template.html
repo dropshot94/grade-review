@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Offline by design: this policy blocks every network request from the page. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Grade Review</title>
+<style>
+/*STYLES*/
+</style>
+</head>
+<body>
+<header class="app">
+  <div>
+    <h1>Grade Review</h1>
+    <div class="sub" id="sourceInfo">No data loaded</div>
+  </div>
+  <div class="actions">
+    <button class="primary" id="pickBtn">Load grade file</button>
+    <button id="exportBtn" hidden>Export to Excel (.csv)</button>
+    <button id="clearBtn" hidden>Unload data</button>
+  </div>
+</header>
+<div class="privacy">Offline tool. Grade data stays in this browser tab and is gone when you close it. This page cannot send data anywhere. Version /*VERSION*/.</div>
+<input type="file" id="fileInput" accept=".json,application/json" multiple hidden>
+<main id="app"></main>
+<dialog id="studentDlg" aria-label="Student report"></dialog>
+<div id="tip" role="tooltip"></div>
+<script>
+/*SCRIPT*/
+</script>
+</body>
+</html>

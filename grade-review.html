@@ -1,0 +1,1566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Offline by design: this policy blocks every network request from the page. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Grade Review</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f3f0;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6f6d68;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.12);
+  --accent: #1c5cab;
+  --accent-ink: #ffffff;
+  --seq: #2a78d6;
+  --g-A: #0d366b;
+  --g-Am: #184f95;
+  --g-Bp: #256abf;
+  --g-B: #3987e5;
+  --g-Bm: #6da7ec;
+  --crit: #d03b3b;
+  --warn: #fab219;
+  --good: #0ca30c;
+  --note: #898781;
+  --hl: #fff4d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #242423;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #a09e97;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.12);
+    --accent: #5598e7;
+    --accent-ink: #0b0b0b;
+    --seq: #3987e5;
+    --g-A: #cde2fb;
+    --g-Am: #9ec5f4;
+    --g-Bp: #6da7ec;
+    --g-B: #3987e5;
+    --g-Bm: #256abf;
+    --hl: #3a3220;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+button, select, input, textarea { font: inherit; color: inherit; }
+button {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--axis); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
+select, input[type="text"], input[type="number"], input[type="search"], textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.app {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+header.app h1 { font-size: 18px; margin: 0; }
+header.app .sub { color: var(--ink-2); font-size: 13px; }
+header.app .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.privacy {
+  padding: 6px 20px; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+main { padding: 16px 20px 60px; max-width: 1400px; margin: 0 auto; }
+
+nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+nav.tabs button {
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--ink-2);
+}
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 14px; }
+.filters label { display: flex; gap: 6px; align-items: center; color: var(--ink-2); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; margin: 0 0 4px; }
+.card h3 { font-size: 14px; margin: 14px 0 6px; }
+.card .lede { color: var(--ink-2); margin: 0 0 12px; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 10px 0 14px; }
+.kpi { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.kpi .v { font-size: 22px; font-weight: 600; }
+.kpi .l { color: var(--ink-2); font-size: 12.5px; }
+
+.table-wrap { overflow-x: auto; }
+table.data { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: left; vertical-align: middle; }
+table.data th { font-size: 12px; color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+table.data th.sortable { cursor: pointer; }
+table.data th.sortable:hover { color: var(--ink); }
+table.data td.num, table.data th.num { text-align: right; }
+table.data tbody tr.clickable { cursor: pointer; }
+table.data tbody tr.clickable:hover { background: var(--surface-2); }
+.out { font-weight: 700; }
+
+.bar { display: flex; gap: 2px; height: 14px; min-width: 180px; }
+.bar span { display: block; height: 100%; }
+.bar span:first-child { border-radius: 4px 0 0 4px; }
+.bar span:last-child { border-radius: 0 4px 4px 0; }
+.bar span:only-child { border-radius: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--ink-2); margin: 4px 0 10px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+.g-A { background: var(--g-A); } .g-Am { background: var(--g-Am); } .g-Bp { background: var(--g-Bp); }
+.g-B { background: var(--g-B); } .g-Bm { background: var(--g-Bm); }
+
+.matrix td.cell { text-align: center; min-width: 44px; border-left: 2px solid var(--surface); cursor: pointer; }
+.matrix td.cell.empty { cursor: default; color: var(--muted); }
+.matrix tr.mixed th[scope="row"] { font-weight: 700; }
+.tag { display: inline-block; font-size: 11.5px; padding: 1px 6px; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--border); }
+
+.sev { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.sev svg { width: 14px; height: 14px; flex: none; }
+.sev.high svg { color: var(--crit); }
+.sev.medium svg { color: var(--warn); }
+.sev.low svg { color: var(--note); }
+
+.flag { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: var(--surface); }
+.flag .top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.flag .title { font-weight: 600; }
+.flag .where { color: var(--ink-2); font-size: 12.5px; }
+.flag .detail { margin: 4px 0; color: var(--ink-2); }
+.flag .who { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.flag .row-actions { margin-top: 6px; display: flex; gap: 8px; }
+.flag.queued { background: var(--hl); }
+
+.empty-state { text-align: center; padding: 40px 16px; }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+.steps > li { counter-increment: s; position: relative; padding: 0 0 16px 40px; }
+.steps > li::before {
+  content: counter(s); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700;
+}
+.bookmarklet {
+  display: inline-block; padding: 8px 14px; border-radius: 6px; background: var(--accent); color: var(--accent-ink);
+  text-decoration: none; font-weight: 600; cursor: grab;
+}
+.drop { border: 2px dashed var(--axis); border-radius: 10px; padding: 20px; text-align: center; color: var(--ink-2); }
+body.dragging .drop { border-color: var(--accent); background: var(--surface-2); }
+
+dialog { border: 1px solid var(--border); border-radius: 10px; padding: 0; background: var(--surface); color: var(--ink); width: min(900px, 94vw); max-height: 90vh; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+dialog .dhead { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); }
+dialog .dbody { padding: 12px 16px 18px; }
+dialog h2 { margin: 0; font-size: 17px; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--ink-2); font-size: 13px; margin-bottom: 10px; }
+.el-table td:nth-child(2) { white-space: nowrap; font-weight: 600; }
+.el-table td { vertical-align: top; }
+
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; max-width: 340px; padding: 6px 9px; border-radius: 6px;
+  background: var(--ink); color: var(--page); font-size: 12.5px; display: none; white-space: pre-line;
+}
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--page); padding: 8px 14px; border-radius: 6px; z-index: 60; }
+.muted { color: var(--muted); }
+.nowrap { white-space: nowrap; }
+textarea.note { width: 100%; min-height: 34px; resize: vertical; }
+details.settings summary { cursor: pointer; color: var(--ink-2); }
+details.settings .grid { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 8px; }
+
+@media (max-width: 640px) {
+  header.app, main { padding-left: 16px; padding-right: 16px; }
+  .privacy { padding-left: 16px; padding-right: 16px; }
+}
+@media print {
+  header.app .actions, nav.tabs, .filters, .row-actions, .privacy, button { display: none !important; }
+  body { background: #fff; }
+  .card { break-inside: avoid; border-color: #ccc; }
+}
+
+</style>
+</head>
+<body>
+<header class="app">
+  <div>
+    <h1>Grade Review</h1>
+    <div class="sub" id="sourceInfo">No data loaded</div>
+  </div>
+  <div class="actions">
+    <button class="primary" id="pickBtn">Load grade file</button>
+    <button id="exportBtn" hidden>Export to Excel (.csv)</button>
+    <button id="clearBtn" hidden>Unload data</button>
+  </div>
+</header>
+<div class="privacy">Offline tool. Grade data stays in this browser tab and is gone when you close it. This page cannot send data anywhere. Version 1.0.0.</div>
+<input type="file" id="fileInput" accept=".json,application/json" multiple hidden>
+<main id="app"></main>
+<dialog id="studentDlg" aria-label="Student report"></dialog>
+<div id="tip" role="tooltip"></div>
+<script>
+(function () {
+'use strict';
+// Grade review analysis. Pure functions, no DOM, no network.
+// The build step inlines this file into grade-review.html; tests import it directly.
+
+const GRADE_ORDER = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F'];
+const GRADE_POINTS = {
+  'A+': 4.0, 'A': 4.0, 'A-': 3.7, 'B+': 3.3, 'B': 3.0, 'B-': 2.7,
+  'C+': 2.3, 'C': 2.0, 'C-': 1.7, 'D+': 1.3, 'D': 1.0, 'D-': 0.7, 'F': 0,
+};
+// Buckets used for distribution charts. B- and below are rare, so they share one bucket.
+const GRADE_BUCKETS = ['A', 'A-', 'B+', 'B', 'B- or lower'];
+
+const RATING_LABELS = {
+  4: 'Distinguished', 3: 'Superior', 2: 'Standards', 1: 'Below standards', 0: 'Failed',
+};
+const RATING_SHORT = { 4: 'Dist', 3: 'Sup', 2: 'Std', 1: 'Below', 0: 'Fail' };
+
+const DEFAULT_SETTINGS = {
+  seminarThreshold: 0.15,     // grade points between a seminar and the rest of the course
+  calibrationThreshold: 0.15, // grade points between grades given and grades the ratings predict
+  lowGrade: 'B-',             // at or below this grade counts as low
+};
+
+const FLAG_TYPES = {
+  'data':              { label: 'Data problem', scope: 'student' },
+  'pattern':           { label: 'Same ratings, different grade', scope: 'student' },
+  'inversion':         { label: 'Higher ratings, lower grade', scope: 'student' },
+  'seminar-level':     { label: 'Seminar grades out of line', scope: 'seminar' },
+  'calibration':       { label: 'Grades out of line with ratings', scope: 'seminar' },
+  'comment-grade':     { label: 'Comment states a different grade', scope: 'student' },
+  'comment-name':      { label: 'Comment names another student', scope: 'student' },
+  'comment-rubric':    { label: 'Comment matches another rating', scope: 'student' },
+  'comment-missing':   { label: 'Comment missing or short', scope: 'student' },
+  'low':               { label: 'Low performance', scope: 'student' },
+  'low-multi':         { label: 'Low in more than one course', scope: 'student' },
+};
+
+const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
+
+const NAME_SUFFIXES = new Set(['jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'v']);
+const RANK_TOKENS = new Set([
+  'mr', 'mrs', 'ms', 'dr', 'miss', 'prof',
+  'pvt', 'cpt', 'capt', 'maj', 'ltc', 'col', 'bg', 'mg', 'ltg', 'gen', 'lt', '1lt', '2lt',
+  'cdr', 'lcdr', 'lcol', 'brig', 'wg', 'gp', 'sqn', 'ldr', 'cdre', 'cmdr', 'cmde', 'cpo',
+  'csm', 'sgm', 'cw2', 'cw3', 'cw4', 'cw5', 'lieutenant', 'colonel', 'commander', 'captain',
+]);
+
+function cleanText(s) {
+  return String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+}
+
+function normGrade(g) {
+  const s = cleanText(g).replace(/[()]/g, '').replace(/[−–—]/g, '-').toUpperCase();
+  return s;
+}
+
+function gradePoints(g) {
+  const n = normGrade(g);
+  return Object.prototype.hasOwnProperty.call(GRADE_POINTS, n) ? GRADE_POINTS[n] : null;
+}
+
+function gradeIndex(g) {
+  return GRADE_ORDER.indexOf(normGrade(g));
+}
+
+function gradeBucket(g) {
+  const n = normGrade(g);
+  if (n === 'A+' || n === 'A') return 'A';
+  if (['A-', 'B+', 'B'].includes(n)) return n;
+  if (gradePoints(n) != null) return 'B- or lower';
+  return null;
+}
+
+function ratingScore(label) {
+  const l = cleanText(label).toLowerCase();
+  if (!l) return null;
+  if (/did not|does not|not meet|fail|unsatisf/.test(l)) return 0;
+  if (/needs improvement|marginal|below|partial/.test(l)) return 1;
+  if (/distinguish|outstanding|exceptional/.test(l)) return 4;
+  if (/superior|exceed/.test(l)) return 3;
+  if (/standard|meets|satisfactory/.test(l)) return 2;
+  return null;
+}
+
+function stripRankAndSuffix(tokens) {
+  const out = tokens.slice();
+  while (out.length > 1 && RANK_TOKENS.has(out[0].toLowerCase().replace(/\./g, ''))) out.shift();
+  while (out.length > 1 && NAME_SUFFIXES.has(out[out.length - 1].toLowerCase())) out.pop();
+  return out;
+}
+
+// Report names look like "Almada, Marrio A, LTC". Dashboard names look like "LTC Marrio A Almada".
+function parsePersonName(reportName, rowName) {
+  const rep = cleanText(reportName);
+  if (rep.includes(',')) {
+    const parts = rep.split(',').map(cleanText).filter(Boolean);
+    const lastTokens = stripRankAndSuffix(parts[0].split(' '));
+    const givenTokens = stripRankAndSuffix((parts[1] || '').split(' ').filter(Boolean));
+    const rank = parts.length > 2 ? parts.slice(2).join(' ') : '';
+    return {
+      last: lastTokens.join(' '),
+      first: givenTokens[0] || '',
+      rank,
+      display: rep,
+    };
+  }
+  const row = cleanText(rowName || rep);
+  const raw = row.split(' ').filter(Boolean);
+  let rank = [];
+  let i = 0;
+  while (i < raw.length - 1 && RANK_TOKENS.has(raw[i].toLowerCase().replace(/\./g, ''))) rank.push(raw[i++]);
+  const tokens = stripRankAndSuffix(raw.slice(i));
+  const last = tokens.length > 1 ? tokens[tokens.length - 1] : tokens[0] || '';
+  const first = tokens.length > 1 ? tokens[0] : '';
+  const display = last ? `${last}, ${tokens.slice(0, -1).join(' ')}${rank.length ? ', ' + rank.join(' ') : ''}` : row;
+  return { last, first, rank: rank.join(' '), display: cleanText(display) };
+}
+
+function isOverallElement(name) {
+  return /^overall/i.test(cleanText(name));
+}
+
+// Turn one collector record into the shape the analysis uses.
+function normalizeRecord(raw) {
+  const warnings = (raw.warnings || []).slice();
+  const person = parsePersonName(raw.name, raw.rowName);
+  const reportElements = (raw.elements || []).map(e => ({
+    name: cleanText(e.element || e.name),
+    rating: cleanText(e.rating || e.evaluation),
+    comment: cleanText(e.comment),
+  })).filter(e => e.name);
+
+  const rowCells = raw.rowCells || {};
+  const rowElementNames = Object.keys(rowCells).filter(k => !/student|name/i.test(k) && k.trim());
+
+  let elements = reportElements.filter(e => !isOverallElement(e.name));
+  let overall = reportElements.find(e => isOverallElement(e.name));
+  if (!elements.length) {
+    elements = rowElementNames.filter(k => !isOverallElement(k))
+      .map(k => ({ name: cleanText(k), rating: cleanText(rowCells[k]), comment: '' }));
+  }
+  // Show elements in the dashboard's column order.
+  const colIndex = n => {
+    const i = rowElementNames.findIndex(k => cleanText(k).toLowerCase() === n.toLowerCase());
+    return i < 0 ? 999 : i;
+  };
+  elements = elements.slice().sort((a, b) => colIndex(a.name) - colIndex(b.name));
+  const rowOverallKey = rowElementNames.find(isOverallElement);
+  if (!overall && rowOverallKey) overall = { name: 'Overall', rating: cleanText(rowCells[rowOverallKey]), comment: '' };
+
+  // Cross-check the dashboard row against the report.
+  if (reportElements.length) {
+    for (const k of rowElementNames) {
+      const rep = reportElements.find(e => e.name.toLowerCase() === cleanText(k).toLowerCase());
+      const rowVal = cleanText(rowCells[k]);
+      if (rep && rowVal && rep.rating && rep.rating.toLowerCase() !== rowVal.toLowerCase()) {
+        warnings.push(`Dashboard shows ${k} "${rowVal}" but the report shows "${rep.rating}".`);
+      }
+    }
+  }
+
+  const grade = overall ? normGrade(overall.rating) : '';
+  const course = cleanText(raw.course) || 'Unknown course';
+  const seminar = cleanText(raw.seminar) || '?';
+  const key = [course, seminar, person.last, person.first].join('|').toLowerCase();
+
+  return {
+    key,
+    id: key,
+    name: person.display || cleanText(raw.rowName) || 'Unknown student',
+    rowName: cleanText(raw.rowName),
+    first: person.first,
+    last: person.last,
+    rank: person.rank,
+    person: `${person.last}|${person.first}`.toLowerCase(),
+    program: cleanText(raw.program),
+    term: cleanText(raw.term),
+    course,
+    seminar,
+    faculty: cleanText(raw.faculty),
+    date: cleanText(raw.date),
+    signature: cleanText(raw.signature),
+    elements: elements.map(e => ({ ...e, score: ratingScore(e.rating) })),
+    grade,
+    points: gradePoints(grade),
+    overallComment: overall ? overall.comment : '',
+    warnings,
+    collectedAt: raw.collectedAt || '',
+  };
+}
+
+// Merge record lists. A later collection of the same student and course replaces an earlier one.
+function mergeRecords(lists) {
+  const map = new Map();
+  for (const list of lists) {
+    for (const r of list) {
+      const prev = map.get(r.key);
+      if (!prev || String(r.collectedAt) >= String(prev.collectedAt)) map.set(r.key, r);
+    }
+  }
+  return [...map.values()];
+}
+
+// Accepts the collector's JSON export (object with records) or a bare array.
+function parseExport(text) {
+  const data = JSON.parse(text);
+  const list = Array.isArray(data) ? data : data.records;
+  if (!Array.isArray(list)) throw new Error('This file has no grade records.');
+  return list.map(normalizeRecord);
+}
+
+function mean(xs) {
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+}
+
+function seminarSort(a, b) {
+  const na = parseFloat(a), nb = parseFloat(b);
+  if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+
+function profileOf(record, elementNames) {
+  const scores = elementNames.map(n => {
+    const e = record.elements.find(x => x.name === n);
+    return e ? e.score : null;
+  });
+  const complete = scores.every(s => s != null);
+  return {
+    scores,
+    complete,
+    key: scores.map(s => (s == null ? '-' : s)).join(''),
+    label: scores.map(s => (s == null ? '?' : RATING_SHORT[s])).join(' / '),
+    total: complete ? scores.reduce((a, b) => a + b, 0) : null,
+  };
+}
+
+function dominates(a, b) {
+  let strictly = false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] < b[i]) return false;
+    if (a[i] > b[i]) strictly = true;
+  }
+  return strictly;
+}
+
+function normComment(s) {
+  return cleanText(s).toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+}
+
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function wordIn(text, word) {
+  if (!word || word.length < 3) return false;
+  return new RegExp(`(^|[^A-Za-z])${escapeRe(word)}([^A-Za-z]|$)`).test(text);
+}
+
+const STATED_GRADE_RE = /(?:[Ff]inal|[Oo]verall|[Cc]ourse)\s+[Gg]rade\s*(?:of|was|is|:)?\s*(?:an?\s+)?[("“]?\s*([A-F][+\-−]?)(?![A-Za-z+\-])/g;
+
+function statedGrades(comment) {
+  const out = [];
+  let m;
+  STATED_GRADE_RE.lastIndex = 0;
+  while ((m = STATED_GRADE_RE.exec(comment || ''))) out.push(normGrade(m[1]));
+  return out;
+}
+
+function fmtPts(x) {
+  return (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(2);
+}
+
+function analyze(records, userSettings) {
+  const settings = { ...DEFAULT_SETTINGS, ...(userSettings || {}) };
+  const lowPoints = gradePoints(settings.lowGrade);
+  const flags = [];
+  let flagSeq = 0;
+  const addFlag = f => { flags.push({ id: `f${++flagSeq}`, keys: [], ...f }); };
+
+  const byCourse = new Map();
+  for (const r of records) {
+    if (!byCourse.has(r.course)) byCourse.set(r.course, []);
+    byCourse.get(r.course).push(r);
+  }
+
+  const courses = [];
+  for (const [courseName, recs] of byCourse) {
+    // Element order: first seen.
+    const elementNames = [];
+    for (const r of recs) for (const e of r.elements) if (!elementNames.includes(e.name)) elementNames.push(e.name);
+
+    for (const r of recs) r.profile = profileOf(r, elementNames);
+
+    const graded = recs.filter(r => r.points != null);
+    const courseMean = mean(graded.map(r => r.points));
+
+    // --- Data problems ---
+    for (const r of recs) {
+      const base = { course: courseName, seminar: r.seminar, keys: [r.key], type: 'data' };
+      if (!r.grade) addFlag({ ...base, severity: 'high', title: 'No overall grade', detail: 'The report has no overall grade.' });
+      else if (r.points == null) addFlag({ ...base, severity: 'high', title: `Unrecognized grade "${r.grade}"`, detail: 'The tool cannot place this grade on the A to F scale.' });
+      const unknown = r.elements.filter(e => e.score == null);
+      if (unknown.length) {
+        addFlag({ ...base, severity: 'medium', title: 'Missing or unrecognized rating',
+          detail: unknown.map(e => `${e.name}: "${e.rating || 'blank'}"`).join('; ') });
+      }
+      if (!r.faculty) addFlag({ ...base, severity: 'low', title: 'No faculty instructor listed', detail: 'The report does not name a faculty instructor.' });
+      if (!r.signature) addFlag({ ...base, severity: 'low', title: 'No faculty signature', detail: 'The report signature line is blank.' });
+      for (const w of r.warnings) addFlag({ ...base, severity: 'high', title: 'Collection warning', detail: w });
+    }
+
+    // --- Same ratings, different grade (course wide) ---
+    const profiles = new Map();
+    for (const r of graded) {
+      if (!r.profile.complete) continue;
+      if (!profiles.has(r.profile.key)) profiles.set(r.profile.key, { ...r.profile, records: [] });
+      profiles.get(r.profile.key).records.push(r);
+    }
+    const profileList = [...profiles.values()].map(p => {
+      const counts = {};
+      for (const r of p.records) counts[r.grade] = (counts[r.grade] || 0) + 1;
+      const grades = Object.keys(counts).sort((a, b) => gradeIndex(a) - gradeIndex(b));
+      return { ...p, counts, grades, n: p.records.length, meanPoints: mean(p.records.map(r => r.points)) };
+    }).sort((a, b) => b.total - a.total || b.key.localeCompare(a.key));
+
+    for (const p of profileList) {
+      if (p.grades.length < 2) continue;
+      const ranked = p.grades.slice().sort((a, b) => p.counts[b] - p.counts[a]);
+      const top = ranked[0];
+      const tie = p.counts[ranked[1]] === p.counts[top];
+      const split = p.grades.map(g => `${g} (${p.counts[g]})`).join(', ');
+      for (const r of p.records) {
+        const base = { type: 'pattern', course: courseName, seminar: r.seminar, keys: [r.key] };
+        if (tie) {
+          addFlag({ ...base, severity: 'low', title: `${p.label}: no clear norm`,
+            detail: `Students with these ratings in this course got ${split}. This student got ${r.grade}.` });
+        } else if (r.grade !== top) {
+          const steps = Math.abs(gradeIndex(r.grade) - gradeIndex(top));
+          addFlag({ ...base, severity: steps >= 2 ? 'high' : 'medium',
+            title: `${p.label}: ${r.grade}, most got ${top}`,
+            detail: `Students with these ratings in this course got ${split}. This student got ${r.grade}.` });
+        }
+      }
+    }
+
+    // --- Seminars ---
+    const semMap = new Map();
+    for (const r of recs) {
+      if (!semMap.has(r.seminar)) semMap.set(r.seminar, []);
+      semMap.get(r.seminar).push(r);
+    }
+
+    // Expected grade for a student = mean grade of the same ratings in OTHER seminars.
+    for (const r of graded) {
+      r.expected = null;
+      if (!r.profile.complete) continue;
+      const p = profiles.get(r.profile.key);
+      const others = p.records.filter(o => o.seminar !== r.seminar);
+      if (others.length >= 2) r.expected = mean(others.map(o => o.points));
+    }
+
+    const seminars = [];
+    for (const [sem, srecs] of [...semMap.entries()].sort((a, b) => seminarSort(a[0], b[0]))) {
+      const sg = srecs.filter(r => r.points != null);
+      const buckets = {};
+      for (const b of GRADE_BUCKETS) buckets[b] = [];
+      for (const r of sg) buckets[gradeBucket(r.grade)].push(r);
+      const others = graded.filter(r => r.seminar !== sem);
+      const semMean = mean(sg.map(r => r.points));
+      const othersMean = mean(others.map(r => r.points));
+      const elementMeans = {};
+      for (const n of elementNames) {
+        elementMeans[n] = mean(srecs.map(r => r.elements.find(e => e.name === n)).filter(e => e && e.score != null).map(e => e.score));
+      }
+      const withExp = sg.filter(r => r.expected != null);
+      const calibration = withExp.length >= 4 ? mean(withExp.map(r => r.points - r.expected)) : null;
+      const faculty = [...new Set(srecs.map(r => r.faculty).filter(Boolean))];
+      const s = {
+        seminar: sem, course: courseName, faculty, records: srecs, n: srecs.length, graded: sg.length,
+        buckets, mean: semMean, othersMean,
+        diff: semMean != null && othersMean != null ? semMean - othersMean : null,
+        aShare: sg.length ? sg.filter(r => r.points >= 3.7).length / sg.length : null,
+        elementMeans,
+        ratingMean: mean(srecs.filter(r => r.profile.complete).map(r => r.profile.total / elementNames.length)),
+        calibration, calibrationN: withExp.length,
+      };
+      seminars.push(s);
+
+      const facultyText = faculty.length ? ` (${faculty.join('; ')})` : '';
+      if (semMap.size >= 3 && sg.length >= 5 && s.diff != null && Math.abs(s.diff) >= settings.seminarThreshold) {
+        addFlag({ type: 'seminar-level', course: courseName, seminar: sem,
+          severity: Math.abs(s.diff) >= settings.seminarThreshold * 2 ? 'high' : 'medium',
+          title: `Seminar ${sem} grades ${s.diff > 0 ? 'above' : 'below'} the rest of the course`,
+          detail: `Seminar ${sem}${facultyText} mean ${semMean.toFixed(2)} vs ${othersMean.toFixed(2)} for all other seminars (${fmtPts(s.diff)}). Check the ratings column: a strong seminar shows high ratings too.` });
+      }
+      if (calibration != null && Math.abs(calibration) >= settings.calibrationThreshold) {
+        addFlag({ type: 'calibration', course: courseName, seminar: sem,
+          severity: Math.abs(calibration) >= settings.calibrationThreshold * 2 ? 'high' : 'medium',
+          title: `Seminar ${sem} grades ${calibration > 0 ? 'higher' : 'lower'} than its ratings predict`,
+          detail: `Across ${withExp.length} students, seminar ${sem}${facultyText} gave grades ${fmtPts(calibration)} points from what other seminars gave for the same element ratings.` });
+      }
+
+      // --- Higher ratings, lower grade (within seminar) ---
+      const comp = sg.filter(r => r.profile.complete);
+      for (const a of comp) {
+        const beaten = comp.filter(b => b !== a && dominates(a.profile.scores, b.profile.scores) && a.points < b.points);
+        if (beaten.length) {
+          addFlag({ type: 'inversion', course: courseName, seminar: sem, severity: 'medium',
+            keys: [a.key, ...beaten.map(b => b.key)],
+            title: `Higher ratings than ${beaten.length} classmate${beaten.length > 1 ? 's' : ''} but a lower grade`,
+            detail: `${a.name}: ${a.profile.label}, ${a.grade}. ` +
+              beaten.map(b => `${b.name}: ${b.profile.label}, ${b.grade}`).join('. ') + '.' });
+        }
+      }
+
+      // --- Comment names another student ---
+      for (const r of srecs) {
+        const text = r.overallComment;
+        if (!text) continue;
+        const selfWords = new Set([r.first, r.last, ...r.last.split(' ')].filter(Boolean));
+        const hits = srecs.filter(o => o !== r && (
+          (wordIn(text, o.first) && !selfWords.has(o.first)) ||
+          (wordIn(text, o.last) && !selfWords.has(o.last))));
+        if (hits.length) {
+          const namesSelf = wordIn(text, r.first) || wordIn(text, r.last);
+          addFlag({ type: 'comment-name', course: courseName, seminar: sem, keys: [r.key],
+            severity: namesSelf ? 'medium' : 'high',
+            title: namesSelf ? 'Overall comment also names a classmate' : 'Overall comment names a classmate, not this student',
+            detail: `Comment mentions ${hits.map(o => o.name).join('; ')}. Possible copy and paste error.` });
+        }
+      }
+    }
+
+    // --- Comment checks (course wide) ---
+    // Rubric text: a comment that appears 3+ times under one element and rating.
+    const rubric = {};
+    for (const n of elementNames) {
+      const seen = new Map();
+      for (const r of recs) {
+        const e = r.elements.find(x => x.name === n);
+        if (!e || !e.comment || e.score == null) continue;
+        const t = normComment(e.comment);
+        if (!seen.has(t)) seen.set(t, {});
+        seen.get(t)[e.score] = (seen.get(t)[e.score] || 0) + 1;
+      }
+      rubric[n] = [];
+      for (const [t, byScore] of seen) {
+        const best = Object.entries(byScore).sort((a, b) => b[1] - a[1])[0];
+        if (best[1] >= 3 && t.length >= 60) rubric[n].push({ text: t, score: Number(best[0]) });
+      }
+    }
+
+    for (const r of recs) {
+      const base = { course: courseName, seminar: r.seminar, keys: [r.key] };
+
+      for (const e of r.elements) {
+        if (!e.comment || e.score == null) continue;
+        const t = normComment(e.comment);
+        const match = (rubric[e.name] || []).find(c => c.score !== e.score && (t === c.text || t.startsWith(c.text)));
+        if (match) {
+          addFlag({ ...base, type: 'comment-rubric', severity: 'high',
+            title: `${e.name}: rated ${RATING_SHORT[e.score]}, comment is ${RATING_SHORT[match.score]} text`,
+            detail: `The ${e.name} rating is "${e.rating}", but the comment matches the text other faculty used for ${RATING_LABELS[match.score]}.` });
+        }
+      }
+
+      const missingEl = r.elements.filter(e => !e.comment).map(e => e.name);
+      if (cleanText(r.overallComment).length < 40) {
+        addFlag({ ...base, type: 'comment-missing', severity: 'medium', title: 'Overall comment missing or very short',
+          detail: r.overallComment ? `Comment: "${cleanText(r.overallComment)}"` : 'No overall comment.' });
+      }
+      if (missingEl.length && missingEl.length < r.elements.length) {
+        addFlag({ ...base, type: 'comment-missing', severity: 'low', title: 'Element comment missing',
+          detail: `No comment for ${missingEl.join(', ')}.` });
+      }
+
+      const stated = statedGrades(r.overallComment);
+      const wrong = stated.filter(g => g !== r.grade);
+      if (r.grade && wrong.length) {
+        addFlag({ ...base, type: 'comment-grade', severity: 'high',
+          title: `Comment says ${wrong[0]}, grade is ${r.grade}`,
+          detail: `The overall comment states a final grade of ${wrong.join(', ')}, but the recorded grade is ${r.grade}.` });
+      }
+
+      r.commentSignature = null;
+      if (r.overallComment && r.overallComment.length >= 40) {
+        let t = r.overallComment;
+        for (const w of [r.first, r.last]) if (w && w.length >= 2) t = t.replace(new RegExp(escapeRe(w), 'g'), '\u00a7');
+        r.commentSignature = normComment(t);
+      }
+
+      // Low performance
+      const lowEls = r.elements.filter(e => e.score != null && e.score <= 1);
+      if ((r.points != null && lowPoints != null && r.points <= lowPoints) || lowEls.length) {
+        const parts = [];
+        if (r.points != null && r.points <= lowPoints) parts.push(`grade ${r.grade}`);
+        for (const e of lowEls) parts.push(`${e.name} ${e.rating}`);
+        addFlag({ ...base, type: 'low', severity: 'medium', title: `Low performance: ${parts.join(', ')}`,
+          detail: 'Confirm the faculty comments support the grade and that the student has been counseled.' });
+      }
+    }
+    // Share of overall comments that are not word for word the same as a classmate's (names aside).
+    for (const sem of seminars) {
+      const counts = new Map();
+      for (const r of sem.records) if (r.commentSignature) counts.set(r.commentSignature, (counts.get(r.commentSignature) || 0) + 1);
+      sem.uniqueComments = sem.records.length
+        ? sem.records.filter(r => r.commentSignature && counts.get(r.commentSignature) === 1).length / sem.records.length : null;
+    }
+
+    courses.push({
+      name: courseName, elements: elementNames, records: recs, n: recs.length,
+      mean: courseMean, seminars, profiles: profileList,
+    });
+  }
+
+  // --- Low in more than one course ---
+  const lowByPerson = new Map();
+  for (const f of flags) {
+    if (f.type !== 'low') continue;
+    const r = records.find(x => x.key === f.keys[0]);
+    if (!lowByPerson.has(r.person)) lowByPerson.set(r.person, new Set());
+    lowByPerson.get(r.person).add(r);
+  }
+  for (const set of lowByPerson.values()) {
+    const list = [...set];
+    const courseNames = new Set(list.map(r => r.course));
+    if (courseNames.size < 2) continue;
+    for (const r of list) {
+      addFlag({ type: 'low-multi', course: r.course, seminar: r.seminar, keys: [r.key], severity: 'high',
+        title: `Low performance in ${courseNames.size} courses`,
+        detail: list.map(x => `${x.course}: ${x.grade || 'no grade'}`).join('; ') });
+    }
+  }
+
+  courses.sort((a, b) => a.name.localeCompare(b.name));
+  const flagsByKey = new Map();
+  for (const f of flags) for (const k of f.keys) {
+    if (!flagsByKey.has(k)) flagsByKey.set(k, []);
+    flagsByKey.get(k).push(f);
+  }
+  flags.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
+    a.course.localeCompare(b.course) || seminarSort(a.seminar, b.seminar));
+  return { courses, flags, flagsByKey, settings };
+}
+
+// Flat rows for CSV export (Excel).
+function toCsv(records, flagsByKey) {
+  const elementNames = [];
+  for (const r of records) for (const e of r.elements) if (!elementNames.includes(e.name)) elementNames.push(e.name);
+  const head = ['Course', 'Seminar', 'Faculty', 'Student', 'Rank', ...elementNames, 'Overall', 'Points',
+    'Flags', 'Flag details', ...elementNames.map(n => `${n} comment`), 'Overall comment', 'Report date'];
+  const rows = [head];
+  for (const r of records) {
+    const fl = (flagsByKey && flagsByKey.get(r.key)) || [];
+    rows.push([
+      r.course, r.seminar, r.faculty, r.name, r.rank,
+      ...elementNames.map(n => (r.elements.find(e => e.name === n) || {}).rating || ''),
+      r.grade, r.points == null ? '' : r.points,
+      fl.length, fl.map(f => `[${f.severity}] ${f.title}`).join(' | '),
+      ...elementNames.map(n => (r.elements.find(e => e.name === n) || {}).comment || ''),
+      r.overallComment, r.date,
+    ]);
+  }
+  return rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+}
+
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  // Guard against spreadsheet formula injection.
+  const safe = /^[=+\-@]/.test(s) && !/^-?\d/.test(s) ? `'${s}` : s;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
+// Synthetic sample data in the collector's export format. All names are made up.
+// Used by the "Try sample data" button and by the tests.
+
+function makeSampleExport(seed = 7) {
+  let s = seed >>> 0;
+  const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const pick = a => a[Math.floor(rand() * a.length)];
+
+  const FIRST = ['Alex', 'Jordan', 'Casey', 'Morgan', 'Riley', 'Taylor', 'Avery', 'Quinn', 'Parker', 'Reese',
+    'Drew', 'Harper', 'Rowan', 'Emerson', 'Blake', 'Cameron', 'Hayden', 'Jamie', 'Kendall', 'Logan',
+    'Micah', 'Peyton', 'Sawyer', 'Skyler', 'Tatum', 'Elliot', 'Finley', 'Marlowe', 'Sutton', 'Wren'];
+  const LAST = ['Abbott', 'Barlow', 'Calder', 'Dunmore', 'Ellery', 'Fairbank', 'Galloway', 'Hartwell', 'Ingram',
+    'Jessup', 'Kirkland', 'Lockhart', 'Merriam', 'Norwood', 'Oakes', 'Pembrook', 'Quimby', 'Radley', 'Stanton',
+    'Thorne', 'Upton', 'Vance', 'Whitlock', 'Yardley', 'Ashby', 'Brandt', 'Corwin', 'Delancey', 'Eastman',
+    'Fenwick', 'Gilchrist', 'Holloway', 'Iverson', 'Jarrell', 'Kessler', 'Lindqvist', 'Mercer', 'Nash', 'Orton',
+    'Prescott', 'Rourke', 'Sherwood', 'Tolliver', 'Underhill', 'Vickery', 'Wexford', 'Ainsley', 'Bramwell',
+    'Crowther', 'Dexter', 'Everly', 'Fitzhugh', 'Granger', 'Hensley', 'Kimball', 'Langford', 'Maddox', 'Pryor',
+    'Redmond', 'Sinclair', 'Talbot', 'Wardell', 'Yates', 'Ballard', 'Carrow', 'Donnelly', 'Emmett', 'Forsyth',
+    'Garrick', 'Hadley', 'Irwin', 'Kendrick', 'Lowell', 'Marsh', 'Newbury', 'Osgood', 'Pickett', 'Rhodes',
+    'Sayer', 'Tremont', 'Whitaker', 'Ashford', 'Beckett', 'Crane', 'Dorsey', 'Elwood', 'Fowler', 'Gentry',
+    'Harlan', 'Keene', 'Larkin', 'Mayfield', 'Nolan', 'Orwell', 'Pruitt', 'Ramsey', 'Stroud', 'Temple',
+    'Wainwright', 'Aldridge', 'Bristow', 'Colby', 'Darrow', 'Eldridge', 'Frost', 'Gale', 'Hollis', 'Jett',
+    'Kerr', 'Lyle', 'Monroe', 'Nye', 'Pratt', 'Royce', 'Shaw', 'Tate', 'Voss', 'Wick', 'York', 'Zane', 'Blythe',
+    'Cutler', 'Dane', 'Foss', 'Grier', 'Hume', 'Kidd', 'Lane', 'Moss'];
+  const RANKS = ['LTC', 'LTC', 'LTC', 'LTC', 'COL', 'CDR', 'Lt Col', 'Mr', 'Ms'];
+  const RATINGS = { 4: 'Distinguished Performance', 3: 'Superior Performance', 2: 'Performed to Standards', 1: 'Needs Improvement' };
+  const ELEMENTS = ['Oral', 'Strategic Thinking', 'Writing'];
+  const RUBRIC = {
+    'Oral': {
+      4: 'Contributions consistently shape the seminar dialogue; delivery is clear, compelling, and tailored to a senior audience.',
+      3: 'Contributions often advance the seminar dialogue; delivery is clear and organized with few prompts from faculty.',
+      2: 'Contributions are relevant and organized; delivery is clear, though listeners sometimes ask for clarification.',
+      1: 'Contributions are infrequent or unfocused; delivery often leaves the audience unsure of the main point.',
+    },
+    'Strategic Thinking': {
+      4: 'Integrates concepts across courses without prompting and frames original, well defended judgments on complex issues.',
+      3: 'Integrates key concepts and challenges assumptions; identifies significant implications of competing approaches.',
+      2: 'Applies key concepts accurately and recognizes major implications, with some prompting from faculty.',
+      1: 'Applies concepts unevenly and often misses the implications of competing approaches to an issue.',
+    },
+    'Writing': {
+      4: 'Written work is precise and persuasive, argues a focused thesis, and draws on strong evidence throughout.',
+      3: 'Written work is clear and well organized, argues a sound thesis, and supports most claims with good evidence.',
+      2: 'Written work is informative and focused, argues a thesis, and supports most claims with relevant sources.',
+      1: 'Written work lacks a clear thesis or support; errors in grammar or citation detract from the meaning.',
+    },
+  };
+  const COURSES = ['Foundations Theories and Concepts', 'Strategic Leadership'];
+  const FACULTY_LAST = ['Adair', 'Beale', 'Conroy', 'Dillard', 'Easton', 'Farrow', 'Goss', 'Hale', 'Irby', 'Judd',
+    'Kemp', 'Lister', 'Mott', 'Nevins', 'Ogle', 'Penn'];
+
+  const nSem = 8, perSem = 15;
+  const usedNames = new Set();
+  const students = [];
+  for (let sem = 1; sem <= nSem; sem++) {
+    const usedFirst = new Set();
+    for (let i = 0; i < perSem; i++) {
+      let first, last;
+      do { first = pick(FIRST); } while (usedFirst.has(first));
+      do { last = pick(LAST); } while (usedNames.has(last));
+      usedFirst.add(first);
+      usedNames.add(last);
+      students.push({ sem, first, last, mid: String.fromCharCode(65 + Math.floor(rand() * 26)), rank: pick(RANKS), ability: rand() });
+    }
+  }
+
+  const scale = ['F', 'D', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A'];
+  const baseGrade = total => (total >= 12 ? 'A' : total >= 10 ? 'A-' : total >= 8 ? 'B+' : total >= 6 ? 'B' : 'B-');
+  const shift = (g, n) => scale[Math.max(0, Math.min(scale.length - 1, scale.indexOf(g) + n))];
+
+  const records = [];
+  COURSES.forEach((course, ci) => {
+    for (const st of students) {
+      const scores = ELEMENTS.map(() => {
+        const x = st.ability * 0.7 + rand() * 0.45;
+        return x > 0.95 ? 4 : x > 0.5 ? 3 : x > 0.12 ? 2 : 1;
+      });
+      const total = scores.reduce((a, b) => a + b, 0);
+      let grade = baseGrade(total);
+      if (rand() < 0.12) grade = shift(grade, rand() < 0.5 ? -1 : 1); // ordinary noise
+      if (st.sem === 3 && ci === 0) grade = shift(grade, 1);           // lenient seminar
+      if (st.sem === 6 && ci === 1 && rand() < 0.6) grade = shift(grade, -1); // strict seminar
+      const fac = FACULTY_LAST[(st.sem - 1 + ci * nSem) % FACULTY_LAST.length];
+      const nameRow = `${st.rank} ${st.first} ${st.mid} ${st.last}`;
+      const elements = ELEMENTS.map((el, i) => ({ element: el, rating: RATINGS[scores[i]], comment: RUBRIC[el][scores[i]] }));
+      const paper = pick(['deterrence in the Indo-Pacific', 'Arctic security', 'defense industrial capacity',
+        'alliance burden sharing', 'information advantage', 'civil-military relations', 'energy security']);
+      const overallComment = `${st.first} performed ${grade.startsWith('A') ? 'very well' : 'well'} throughout ${course}, earning a final grade of (${grade}). ` +
+        `The course paper on ${paper} ${scores[2] >= 3 ? 'was well argued' : 'met course standards'}. ` +
+        pick([`${st.first}'s participation helped create a productive learning environment.`,
+          `${st.first} often connected seminar topics to operational experience.`,
+          `${st.first} should keep working on concise, focused arguments.`]);
+      elements.push({ element: 'Overall', rating: grade, comment: overallComment });
+      records.push({
+        collectedAt: '2026-09-29T12:00:00.000Z',
+        page: 'sample',
+        rowName: nameRow,
+        rowCells: Object.fromEntries([['Student Name', nameRow], ...ELEMENTS.map((el, i) => [el, RATINGS[scores[i]]]), ['Overall', grade]]),
+        name: `${st.last}, ${st.first} ${st.mid}, ${st.rank}`,
+        program: 'AY2027 Resident Program (SAMPLE)',
+        term: '0',
+        course,
+        seminar: String(st.sem),
+        faculty: `${fac}, Pat Q COL`,
+        date: ci === 0 ? '16 Sep 2026' : '27 Oct 2026',
+        signature: '//Electronically Approved//',
+        elements,
+        warnings: [],
+      });
+    }
+  });
+
+  // Planted problems so every check has something to find.
+  const find = (course, sem, idx) => records.filter(r => r.course === course && r.seminar === String(sem))[idx];
+  const ov = r => r.elements.find(e => e.element === 'Overall');
+
+  const a = find(COURSES[0], 2, 4);               // comment states the wrong grade
+  ov(a).comment = ov(a).comment.replace(/final grade of \([^)]+\)/, `final grade of (${ov(a).rating === 'A' ? 'A-' : 'A'})`);
+
+  const b = find(COURSES[0], 4, 2), bOther = find(COURSES[0], 4, 7); // comment copied from a classmate
+  ov(b).comment = ov(bOther).comment;
+
+  const c = find(COURSES[1], 5, 3);               // element comment from a different rating
+  const w = c.elements.find(e => e.element === 'Writing');
+  const wrongScore = w.rating === RATINGS[4] ? 2 : 4;
+  w.comment = RUBRIC.Writing[wrongScore];
+
+  const d = find(COURSES[0], 7, 1);               // missing overall comment
+  ov(d).comment = '';
+
+  const lowName = find(COURSES[0], 1, 9).name;    // low in both courses
+  for (const r of records.filter(x => x.name === lowName)) {
+    r.elements[0].rating = RATINGS[1]; r.rowCells.Oral = RATINGS[1];
+    r.elements[0].comment = RUBRIC.Oral[1];
+    const o = ov(r); o.rating = 'B-'; r.rowCells.Overall = 'B-';
+    o.comment = o.comment.replace(/final grade of \([^)]+\)/, 'final grade of (B-)');
+  }
+
+  return { format: 'compass-grade-export', version: 1, exportedAt: '2026-09-29T12:00:00.000Z', sample: true, records };
+}
+
+const COLLECTOR_SRC = "// Compass grade collector. Runs inside the Compass Director Dashboard page, in your own\n// logged-in browser, as a bookmarklet or pasted into the browser console.\n// It opens each student's Course Evaluation Report, reads it, and closes it.\n// It sends nothing anywhere: records stay in this browser until you download them.\n(function () {\n  'use strict';\n  var KEY = 'gradeCollector.v1';\n  if (window.__gradeCollector) { window.__gradeCollector.show(); return; }\n\n  // ---------- storage (this browser only) ----------\n  var memory = { records: {} };\n  function load() {\n    try { var t = localStorage.getItem(KEY); return t ? JSON.parse(t) : { records: {} }; }\n    catch (e) { return memory; }\n  }\n  function save(state) {\n    memory = state;\n    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* memory only */ }\n  }\n  function clearStore() {\n    memory = { records: {} };\n    try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }\n  }\n\n  // ---------- helpers ----------\n  function txt(el) { return (el ? (el.innerText || el.textContent || '') : '').replace(/\\s+/g, ' ').trim(); }\n  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }\n  function visible(el) {\n    if (!el || !el.getClientRects || !el.getClientRects().length) return false;\n    var cs = el.ownerDocument.defaultView.getComputedStyle(el);\n    return cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0';\n  }\n  function docs() {\n    var out = [document];\n    var frames = document.querySelectorAll('iframe, frame');\n    for (var i = 0; i < frames.length; i++) {\n      try { if (frames[i].contentDocument && visible(frames[i])) out.push(frames[i].contentDocument); } catch (e) { /* cross-origin */ }\n    }\n    return out;\n  }\n  function cellsOf(tr) { return Array.prototype.filter.call(tr.children, function (c) { return /^(TD|TH)$/.test(c.tagName); }); }\n\n  // ---------- dashboard table ----------\n  function headerOf(table) {\n    var rows = table.querySelectorAll('tr');\n    for (var i = 0; i < rows.length && i < 3; i++) {\n      var names = cellsOf(rows[i]).map(txt);\n      if (names.some(function (n) { return /student\\s*name/i.test(n); })) return { row: rows[i], names: names };\n    }\n    return null;\n  }\n  function findGradeTables() {\n    var found = [];\n    var tables = document.querySelectorAll('table');\n    for (var i = 0; i < tables.length; i++) {\n      var t = tables[i];\n      if (!visible(t)) continue;\n      var h = headerOf(t);\n      if (!h) continue;\n      var bodyTable = t;\n      // DataTables with scrolling splits the header and body into two tables.\n      var bodyRows = dataRows(t, h.row);\n      if (!bodyRows.length) {\n        var wrap = t.closest('.dataTables_scroll, .dataTables_wrapper');\n        var other = wrap && wrap.querySelector('.dataTables_scrollBody table');\n        if (other) { bodyTable = other; bodyRows = dataRows(other, null); }\n      }\n      if (bodyRows.length) found.push({ names: h.names, rows: bodyRows, table: bodyTable });\n    }\n    return found;\n  }\n  function dataRows(table, headerRow) {\n    return Array.prototype.filter.call(table.querySelectorAll('tr'), function (tr) {\n      if (tr === headerRow) return false;\n      if (tr.closest('table') !== table) return false;\n      var cells = cellsOf(tr);\n      return cells.length >= 3 && cells.some(function (c) { return c.tagName === 'TD'; }) && visible(tr) && txt(tr).length > 0;\n    });\n  }\n  function rowRecord(names, tr) {\n    var cells = cellsOf(tr), out = {};\n    for (var i = 0; i < names.length && i < cells.length; i++) if (names[i]) out[names[i]] = txt(cells[i]);\n    return out;\n  }\n  function clickTarget(tr) {\n    var el = tr.querySelector('a, button, [onclick], [role=\"button\"], input[type=\"button\"], input[type=\"image\"]');\n    if (el) return el;\n    var first = cellsOf(tr)[0];\n    return (first && (first.querySelector('i, img, span, svg') || first)) || tr;\n  }\n\n  // ---------- Course Evaluation Report ----------\n  function findReport() {\n    var ds = docs();\n    for (var d = 0; d < ds.length; d++) {\n      var tables = ds[d].querySelectorAll('table');\n      for (var i = 0; i < tables.length; i++) {\n        var t = tables[i];\n        if (!visible(t)) continue;\n        var first = t.querySelector('tr');\n        var head = first ? cellsOf(first).map(txt).join(' | ') : '';\n        if (!/element/i.test(head) || !/evaluation/i.test(head)) continue;\n        var root = t;\n        while (root.parentElement && !/Faculty Instructor/i.test(txt(root))) root = root.parentElement;\n        if (!root.parentElement && !/Faculty Instructor/i.test(txt(root))) root = t.parentElement || t;\n        return { root: root, table: t };\n      }\n    }\n    return null;\n  }\n  function field(lines, label, stopLabels) {\n    var re = new RegExp('(?:^|\\\\s)' + label + '\\\\s*:\\\\s*(.*)$', 'i');\n    for (var i = 0; i < lines.length; i++) {\n      var m = lines[i].match(re);\n      if (m) {\n        var v = m[1];\n        for (var j = 0; j < stopLabels.length; j++) {\n          var k = v.search(new RegExp('\\\\s' + stopLabels[j] + '\\\\s*:', 'i'));\n          if (k >= 0) v = v.slice(0, k);\n        }\n        return v.replace(/\\s+/g, ' ').trim();\n      }\n    }\n    return '';\n  }\n  function parseReport(rep) {\n    var lines = (rep.root.innerText || '').split(/\\n+/).map(function (l) { return l.replace(/[ \\t]+/g, ' ').trim(); }).filter(Boolean);\n    var name = '';\n    var heads = rep.root.querySelectorAll('h1, h2, h3, h4, h5, strong, b');\n    for (var i = 0; i < heads.length; i++) {\n      var h = txt(heads[i]);\n      if (h && !/course evaluation report|:$/i.test(h) && /,/.test(h)) { name = h; break; }\n    }\n    if (!name) {\n      var at = lines.findIndex(function (l) { return /course evaluation report/i.test(l); });\n      if (at >= 0 && lines[at + 1] && !/:/.test(lines[at + 1])) name = lines[at + 1];\n    }\n    var elements = [];\n    var trs = rep.table.querySelectorAll('tr');\n    for (var r = 0; r < trs.length; r++) {\n      var c = cellsOf(trs[r]);\n      if (c.length < 2) continue;\n      var el = txt(c[0]);\n      if (!el || /^element$/i.test(el)) continue;\n      elements.push({ element: el, rating: txt(c[1]), comment: c[2] ? txt(c[2]) : '' });\n    }\n    return {\n      name: name,\n      program: field(lines, 'Academic Program', ['Term']),\n      term: field(lines, 'Term', []),\n      course: field(lines, 'Course', ['Seminar']),\n      seminar: field(lines, 'Seminar', []),\n      faculty: field(lines, 'Faculty Instructor', []),\n      date: field(lines, 'Date', []),\n      signature: field(lines, 'Signature', []),\n      elements: elements,\n      signatureText: txt(rep.root)\n    };\n  }\n  function closeReport(rep) {\n    var box = rep.root.closest('.modal, [role=\"dialog\"], .ui-dialog, .modal-dialog, .popup, .dialog') || rep.root;\n    var btn = box.querySelector('[data-dismiss=\"modal\"], [data-bs-dismiss=\"modal\"], .close, .btn-close, .ui-dialog-titlebar-close, [aria-label=\"Close\"], [title=\"Close\"]');\n    if (!btn) {\n      var all = box.querySelectorAll('button, a, span, div');\n      for (var i = 0; i < all.length; i++) {\n        var t = txt(all[i]);\n        if ((t === '×' || t === 'x' || t === 'X' || /^close$/i.test(t)) && all[i].children.length === 0) { btn = all[i]; break; }\n      }\n    }\n    if (btn) btn.click();\n    else {\n      var $ = window.jQuery;\n      if ($ && $.fn && $.fn.modal) { try { $(box).modal('hide'); } catch (e) { /* ignore */ } }\n      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));\n    }\n  }\n  async function waitFor(fn, ms) {\n    var end = Date.now() + ms;\n    while (Date.now() < end) { var v = fn(); if (v) return v; await sleep(150); }\n    return null;\n  }\n  function lastNameOf(rowName) {\n    var toks = rowName.split(/\\s+/).filter(function (t) { return !/^(jr\\.?|sr\\.?|ii|iii|iv)$/i.test(t); });\n    return toks.length ? toks[toks.length - 1].toLowerCase() : '';\n  }\n\n  // ---------- run ----------\n  var stopFlag = false, running = false;\n  async function collect() {\n    if (running) return;\n    running = true; stopFlag = false;\n    var tables = findGradeTables();\n    if (!tables.length) {\n      status('No grade table found. Open the Director Dashboard list that shows \"Student Name\" and grades, then try again.', true);\n      running = false; return;\n    }\n    var jobs = [];\n    tables.forEach(function (t) { t.rows.forEach(function (tr) { jobs.push({ names: t.names, tr: tr }); }); });\n    var state = load(), ok = 0, problems = 0, prevText = '';\n    var open = findReport();\n    if (open) { closeReport(open); await sleep(400); }\n\n    for (var i = 0; i < jobs.length; i++) {\n      if (stopFlag) { status('Stopped. ' + ok + ' read this run.'); break; }\n      var job = jobs[i];\n      var cells = rowRecord(job.names, job.tr);\n      var nameKey = Object.keys(cells).find(function (k) { return /student\\s*name/i.test(k); });\n      var rowName = nameKey ? cells[nameKey] : '';\n      status('Reading ' + (i + 1) + ' of ' + jobs.length + ': ' + rowName);\n      var rec = { collectedAt: new Date().toISOString(), page: location.pathname, rowName: rowName, rowCells: cells, warnings: [] };\n\n      clickTarget(job.tr).click();\n      var rep = await waitFor(function () {\n        var r = findReport();\n        if (!r) return null;\n        var t = txt(r.root);\n        if (t === prevText || !/Faculty Instructor/i.test(t)) return null;\n        return r;\n      }, 15000);\n      if (rep) {\n        // Let content finish loading: wait until the text stops changing.\n        var last = '', same = 0;\n        for (var k = 0; k < 20 && same < 2; k++) {\n          await sleep(150);\n          var now = txt(rep.root);\n          same = now === last ? same + 1 : 0;\n          last = now;\n        }\n        prevText = txt(rep.root);\n        var parsed = parseReport(rep);\n        delete parsed.signatureText;\n        Object.keys(parsed).forEach(function (k2) { rec[k2] = parsed[k2]; });\n        var ln = lastNameOf(rowName);\n        if (ln && prevText.toLowerCase().indexOf(ln) < 0) rec.warnings.push('The report did not show the name \"' + rowName + '\". It may belong to another student.');\n        if (!parsed.elements.length) rec.warnings.push('Could not read the element table in the report.');\n        closeReport(rep);\n        await waitFor(function () { var r2 = findReport(); return !r2 || !visible(r2.table); }, 4000);\n      } else {\n        rec.warnings.push('The report did not open. Only the dashboard row was saved.');\n        problems++;\n      }\n      var id = [rec.course || '', rec.seminar || '', rowName].join('|').toLowerCase();\n      state.records[id] = rec;\n      save(state);\n      ok++;\n      await sleep(350);\n    }\n    running = false;\n    var total = Object.keys(load().records).length;\n    if (!stopFlag) status('Done. Read ' + ok + ' students on this page' + (problems ? ' (' + problems + ' with problems)' : '') + '. ' + total + ' saved in total. Open the next seminar or course and collect again, or download.');\n    refresh();\n  }\n\n  // ---------- downloads ----------\n  function download(name, text, type) {\n    var blob = new Blob([text], { type: type });\n    var a = document.createElement('a');\n    a.href = URL.createObjectURL(blob);\n    a.download = name;\n    document.body.appendChild(a);\n    a.click();\n    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);\n  }\n  function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }\n  function downloadJson() {\n    var recs = Object.keys(load().records).map(function (k) { return load().records[k]; });\n    if (!recs.length) { status('Nothing collected yet.', true); return; }\n    download('compass-grades-' + stamp() + '.json',\n      JSON.stringify({ format: 'compass-grade-export', version: 1, exportedAt: new Date().toISOString(), records: recs }, null, 1),\n      'application/json');\n  }\n  function csvCell(v) {\n    var s = String(v == null ? '' : v);\n    if (/^[=+\\-@]/.test(s)) s = \"'\" + s;\n    return /[\",\\r\\n]/.test(s) ? '\"' + s.replace(/\"/g, '\"\"') + '\"' : s;\n  }\n  function downloadCsv() {\n    var st = load(), recs = Object.keys(st.records).map(function (k) { return st.records[k]; });\n    if (!recs.length) { status('Nothing collected yet.', true); return; }\n    var els = [];\n    recs.forEach(function (r) { (r.elements || []).forEach(function (e) { if (els.indexOf(e.element) < 0) els.push(e.element); }); });\n    var head = ['Course', 'Seminar', 'Faculty', 'Student', 'Report name'].concat(els, els.map(function (e) { return e + ' comment'; }), ['Date', 'Warnings']);\n    var rows = [head].concat(recs.map(function (r) {\n      var get = function (n, f) { var e = (r.elements || []).find(function (x) { return x.element === n; }); return e ? e[f] : ''; };\n      return [r.course, r.seminar, r.faculty, r.rowName, r.name]\n        .concat(els.map(function (n) { return get(n, 'rating'); }), els.map(function (n) { return get(n, 'comment'); }), [r.date, (r.warnings || []).join(' ')]);\n    }));\n    download('compass-grades-' + stamp() + '.csv', rows.map(function (r) { return r.map(csvCell).join(','); }).join('\\r\\n'), 'text/csv');\n  }\n\n  // Page structure with all text removed, to fix the collector if Compass changes. No names, no grades.\n  function diagnostics() {\n    function mask(s) { return String(s).replace(/[A-Za-z]/g, 'x').replace(/\\d/g, '9').slice(0, 80); }\n    function walk(el, depth) {\n      if (depth > 30 || !el || el.nodeType !== 1 || el === panel) return null;\n      var node = { tag: el.tagName.toLowerCase() };\n      if (el.id) node.id = el.id;\n      if (el.className && typeof el.className === 'string') node.cls = el.className;\n      ['role', 'type', 'data-toggle', 'data-bs-toggle', 'data-target', 'data-dismiss', 'aria-label', 'title'].forEach(function (a) {\n        if (el.hasAttribute(a)) node[a] = el.getAttribute(a);\n      });\n      if (el.hasAttribute('onclick')) node.onclick = mask(el.getAttribute('onclick'));\n      if (el.hasAttribute('href')) node.href = mask(el.getAttribute('href'));\n      node.vis = visible(el);\n      var own = Array.prototype.filter.call(el.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); }).length;\n      if (own) {\n        var t = Array.prototype.map.call(el.childNodes, function (n) { return n.nodeType === 3 ? n.textContent : ''; }).join(' ').trim();\n        // Keep only the fixed labels the collector looks for.\n        node.text = /^(student name|oral|strategic thinking|writing|overall|element|evaluation|evaluator's comments|course evaluation report|faculty instructor:?|academic program:?|course:?|seminar:?|term:?|date:?|signature:?|print|close|×)$/i.test(t) ? t : '[' + t.length + ' chars]';\n      }\n      var kids = [];\n      for (var i = 0; i < el.children.length; i++) { var k = walk(el.children[i], depth + 1); if (k) kids.push(k); }\n      if (kids.length) node.kids = kids;\n      return node;\n    }\n    var out = {\n      url: location.origin + location.pathname,\n      frames: document.querySelectorAll('iframe, frame').length,\n      jquery: !!window.jQuery, gradeTables: findGradeTables().length, reportOpen: !!findReport(),\n      body: walk(document.body, 0)\n    };\n    download('compass-structure-' + stamp() + '.json', JSON.stringify(out, null, 1), 'application/json');\n    status('Saved a structure file. It has no names or grades, only page layout. Send it if the collector fails.');\n  }\n\n  // ---------- panel ----------\n  var panel = document.createElement('div');\n  panel.setAttribute('role', 'dialog');\n  panel.setAttribute('aria-label', 'Grade collector');\n  panel.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;width:340px;background:#fff;color:#111;' +\n    'border:1px solid #888;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.25);font:13px/1.4 system-ui,Segoe UI,sans-serif;padding:12px;';\n  panel.innerHTML =\n    '<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px\">' +\n    '<strong style=\"font-size:14px\">Grade collector</strong>' +\n    '<button data-act=\"hide\" aria-label=\"Close\" style=\"border:0;background:none;font-size:18px;cursor:pointer\">×</button></div>' +\n    '<div data-role=\"count\" style=\"margin-bottom:6px;color:#444\"></div>' +\n    '<div data-role=\"status\" aria-live=\"polite\" style=\"min-height:36px;margin-bottom:8px;color:#333\"></div>' +\n    '<div style=\"display:flex;flex-wrap:wrap;gap:6px\">' +\n    '<button data-act=\"collect\" style=\"' + btn(true) + '\">Collect this page</button>' +\n    '<button data-act=\"stop\" style=\"' + btn() + '\">Stop</button>' +\n    '<button data-act=\"json\" style=\"' + btn() + '\">Download for review</button>' +\n    '<button data-act=\"csv\" style=\"' + btn() + '\">Download CSV</button>' +\n    '<button data-act=\"clear\" style=\"' + btn() + '\">Clear saved data</button>' +\n    '<button data-act=\"diag\" style=\"' + btn() + '\">Structure file</button></div>' +\n    '<div style=\"margin-top:8px;color:#555;font-size:12px\">Data stays in this browser. Nothing is sent anywhere. Clear saved data when you finish.</div>';\n  function btn(primary) {\n    return 'padding:5px 9px;border-radius:5px;cursor:pointer;font:inherit;' +\n      (primary ? 'background:#1c5cab;color:#fff;border:1px solid #1c5cab;' : 'background:#f3f3f1;color:#111;border:1px solid #bbb;');\n  }\n  function status(msg, bad) {\n    var s = panel.querySelector('[data-role=\"status\"]');\n    s.textContent = msg; s.style.color = bad ? '#b00020' : '#333';\n  }\n  function refresh() {\n    var recs = load().records, keys = Object.keys(recs);\n    var courses = {}, sems = {};\n    keys.forEach(function (k) { courses[recs[k].course || '?'] = 1; sems[(recs[k].course || '?') + '|' + (recs[k].seminar || '?')] = 1; });\n    panel.querySelector('[data-role=\"count\"]').textContent = keys.length + ' students saved · ' +\n      Object.keys(sems).length + ' seminars · ' + Object.keys(courses).length + ' courses';\n  }\n  panel.addEventListener('click', function (e) {\n    var act = e.target.getAttribute && e.target.getAttribute('data-act');\n    if (act === 'collect') collect();\n    else if (act === 'stop') stopFlag = true;\n    else if (act === 'json') downloadJson();\n    else if (act === 'csv') downloadCsv();\n    else if (act === 'diag') diagnostics();\n    else if (act === 'hide') panel.style.display = 'none';\n    else if (act === 'clear') {\n      if (confirm('Delete all grade data saved by the collector in this browser?')) { clearStore(); refresh(); status('Cleared.'); }\n    }\n  });\n  document.body.appendChild(panel);\n  refresh();\n  var tables = findGradeTables(), n = 0;\n  tables.forEach(function (t) { n += t.rows.length; });\n  status(n ? 'Found ' + n + ' students on this page. Click Collect this page.' : 'No grade table found on this page yet.', !n);\n  window.__gradeCollector = { show: function () { panel.style.display = 'block'; refresh(); }, collect: collect };\n})();\n";
+// Grade Review page. Runs offline; the page's security policy blocks all network requests.
+/* global COLLECTOR_SRC, analyze, parseExport, normalizeRecord, mergeRecords, makeSampleExport, toCsv,
+   GRADE_BUCKETS, GRADE_ORDER, FLAG_TYPES, SEVERITY_ORDER, DEFAULT_SETTINGS, RATING_SHORT, gradeBucket, profileOf */
+
+const LOG_KEY = 'gradeReview.log.v1';
+const SETTINGS_KEY = 'gradeReview.settings.v1';
+const BUCKET_CLASS = { 'A': 'g-A', 'A-': 'g-Am', 'B+': 'g-Bp', 'B': 'g-B', 'B- or lower': 'g-Bm' };
+const SEV_LABEL = { high: 'High', medium: 'Check', low: 'Note' };
+const SEV_ICON = {
+  high: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1 15.5 14.5H.5z"/><path fill="#fff" d="M7.2 5.5h1.6v4.6H7.2zM7.2 11.2h1.6v1.6H7.2z"/></svg>',
+  medium: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor"/><path fill="#000" d="M7.2 3.8h1.6v5.2H7.2zM7.2 10.4h1.6V12H7.2z"/></svg>',
+  low: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="currentColor" d="M7.2 7h1.6v5H7.2zM7.2 4h1.6v1.6H7.2z"/></svg>',
+};
+const STATUS = ['Not reviewed', 'Reviewed, no issues', 'Query faculty', 'Resolved'];
+
+const state = {
+  records: [],
+  sources: [],
+  result: null,
+  tab: 'overview',
+  course: '',
+  settings: loadJson(SETTINGS_KEY, {}),
+  log: loadJson(LOG_KEY, {}),
+  flagFilter: { sev: { high: true, medium: true, low: false }, type: '', seminar: '', text: '' },
+  studentFilter: { seminar: '', text: '', flagged: false, profile: '', grade: '' },
+  sort: { overview: { col: 'seminar', dir: 1 }, students: { col: 'seminar', dir: 1 } },
+};
+
+function loadJson(key, dflt) {
+  try { const t = localStorage.getItem(key); return t ? JSON.parse(t) : dflt; } catch (e) { return dflt; }
+}
+function saveJson(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage blocked: keep in memory */ }
+}
+
+const $ = sel => document.querySelector(sel);
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmt(x, d = 2) { return x == null || isNaN(x) ? '–' : x.toFixed(d); }
+function signed(x, d = 2) { return x == null ? '–' : (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(d); }
+function pct(x) { return x == null ? '–' : Math.round(x * 100) + '%'; }
+function letterFor(points) {
+  if (points == null) return '';
+  const table = [['A', 3.85], ['A-', 3.5], ['B+', 3.15], ['B', 2.85], ['B-', 2.5], ['C+', 2.15], ['C', 1.85]];
+  for (const [g, min] of table) if (points >= min) return g;
+  return 'below C';
+}
+function sevBadge(sev) { return `<span class="sev ${sev}">${SEV_ICON[sev]}${SEV_LABEL[sev]}</span>`; }
+function logKey(course, seminar) { return `${course}|${seminar}`; }
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function today() { return new Date().toISOString().slice(0, 10); }
+
+// ---------- data ----------
+function recompute() {
+  state.result = state.records.length ? analyze(state.records, { ...DEFAULT_SETTINGS, ...state.settings }) : null;
+  if (state.result && !state.result.courses.some(c => c.name === state.course)) {
+    state.course = state.result.courses.length === 1 ? state.result.courses[0].name : '';
+  }
+  render();
+}
+function addRecords(list, label) {
+  state.records = mergeRecords([state.records, list]);
+  state.sources.push(label);
+  recompute();
+}
+async function loadFiles(files) {
+  let added = 0;
+  for (const f of files) {
+    try {
+      const recs = parseExport(await f.text());
+      state.records = mergeRecords([state.records, recs]);
+      state.sources.push(f.name);
+      added += recs.length;
+    } catch (e) {
+      alert(`Could not read ${f.name}: ${e.message}\nUse the "Download for review" file from the collector.`);
+    }
+  }
+  if (added) { toast(`Loaded ${added} records.`); recompute(); }
+}
+
+function coursesInView() {
+  if (!state.result) return [];
+  return state.result.courses.filter(c => !state.course || c.name === state.course);
+}
+function flagsInView() {
+  return state.result.flags.filter(f => !state.course || f.course === state.course);
+}
+function recordByKey(key) { return state.records.find(r => r.key === key); }
+
+// ---------- render ----------
+function render() {
+  const hasData = !!state.result;
+  $('#clearBtn').hidden = !hasData;
+  $('#exportBtn').hidden = !hasData;
+  $('#sourceInfo').textContent = hasData
+    ? `${state.records.length} student records from ${state.sources.length} file${state.sources.length > 1 ? 's' : ''}`
+    : 'No data loaded';
+  if (!hasData) { renderWelcome(); return; }
+
+  const flags = flagsInView();
+  const tabs = [
+    ['overview', 'Seminars'], ['patterns', 'Rating patterns'],
+    ['flags', `Flags (${flags.filter(f => f.severity !== 'low').length})`],
+    ['students', 'Students'], ['log', 'Review log'], ['setup', 'Collect more'],
+  ];
+  const courseOpts = state.result.courses.length > 1
+    ? `<option value="">All courses</option>` : '';
+  $('#app').innerHTML = `
+    <nav class="tabs" role="tablist">${tabs.map(([id, label]) =>
+      `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${esc(label)}</button>`).join('')}</nav>
+    <div class="filters">
+      <label>Course <select id="courseSel">${courseOpts}${state.result.courses.map(c =>
+        `<option ${c.name === state.course ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+    </div>
+    <div id="view"></div>`;
+  $('#courseSel').value = state.course;
+  const view = $('#view');
+  if (state.tab === 'overview') view.innerHTML = coursesInView().map(renderCourseOverview).join('');
+  else if (state.tab === 'patterns') view.innerHTML = coursesInView().map(renderPatterns).join('');
+  else if (state.tab === 'flags') view.innerHTML = renderFlags();
+  else if (state.tab === 'students') view.innerHTML = renderStudents();
+  else if (state.tab === 'log') view.innerHTML = renderLog();
+  else if (state.tab === 'setup') view.innerHTML = renderSetup(false);
+  wireSetup();
+}
+
+function renderWelcome() {
+  $('#app').innerHTML = renderSetup(true);
+  wireSetup();
+}
+
+function renderSetup(welcome) {
+  return `
+  <div class="card">
+    <h2>${welcome ? 'Review Compass grades before you approve them' : 'Collect more grades'}</h2>
+    <p class="lede">This page compares every seminar's grades, finds grades that do not match their ratings or comments,
+    and keeps a review log. It runs only in this browser. It cannot send data anywhere.</p>
+    <ol class="steps">
+      <li><strong>Install the collector (one time).</strong> Drag this button to your browser's bookmarks bar:
+        <div style="margin:8px 0"><a class="bookmarklet" id="bm" href="#">Collect grades</a></div>
+        <span class="muted">If the bookmarks bar is hidden, press Ctrl+Shift+B. If your browser blocks bookmarklets,
+        <button class="link" id="copyCode">copy the collector code</button>, open Compass, press F12, choose Console, paste, and press Enter.</span></li>
+      <li><strong>Collect from Compass.</strong> Log in and open the Director Dashboard list for one course and seminar.
+        Click <em>Collect grades</em>. A panel opens; click <em>Collect this page</em>. It opens each student's report,
+        reads it, and closes it. Repeat for each seminar and course. The panel keeps everything you collect.</li>
+      <li><strong>Download.</strong> In the panel, click <em>Download for review</em>. Then click <em>Clear saved data</em>.</li>
+      <li><strong>Load the file here.</strong>
+        <div class="drop" id="drop" style="margin-top:8px">Drop the file here, or
+          <button class="primary" id="pickBtn2">Choose file</button>
+          ${welcome ? ' &nbsp; or &nbsp; <button id="sampleBtn">Try sample data</button>' : ''}</div></li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">If the collector fails</h3>
+    <p class="lede" style="margin:0">Click <em>Structure file</em> in the collector panel while a report is open. It saves the page layout
+    with every name, grade, and comment removed. Send that file to whoever maintains this tool so they can adjust the collector.</p>
+  </div>`;
+}
+
+function wireSetup() {
+  const bm = $('#bm');
+  if (bm) {
+    bm.setAttribute('href', 'javascript:' + encodeURIComponent(COLLECTOR_SRC));
+    bm.addEventListener('click', e => { e.preventDefault(); toast('Drag this button to your bookmarks bar. Click it on the Compass page.'); });
+  }
+}
+
+// ----- Seminars (overview) -----
+function distBar(sem) {
+  const total = sem.graded || 0;
+  if (!total) return '<span class="muted">No grades</span>';
+  return `<div class="bar" role="img" aria-label="${esc(GRADE_BUCKETS.map(b => `${b}: ${sem.buckets[b].length}`).join(', '))}">` +
+    GRADE_BUCKETS.filter(b => sem.buckets[b].length).map(b =>
+      `<span class="${BUCKET_CLASS[b]}" style="flex:${sem.buckets[b].length}" data-tip="${esc(`${b}: ${sem.buckets[b].length} of ${total} (${pct(sem.buckets[b].length / total)})`)}"></span>`).join('') +
+    '</div>';
+}
+function legend() {
+  return `<div class="legend">${GRADE_BUCKETS.map(b => `<span><i class="${BUCKET_CLASS[b]}"></i>${esc(b)}</span>`).join('')}</div>`;
+}
+
+function renderCourseOverview(course) {
+  const flags = state.result.flags.filter(f => f.course === course.name);
+  const graded = course.records.filter(r => r.points != null);
+  const aShare = graded.length ? graded.filter(r => r.points >= 3.7).length / graded.length : null;
+  const s = state.settings.seminarThreshold ?? DEFAULT_SETTINGS.seminarThreshold;
+  const c = state.settings.calibrationThreshold ?? DEFAULT_SETTINGS.calibrationThreshold;
+  const reviewed = course.seminars.filter(x => (state.log[logKey(course.name, x.seminar)] || {}).status > 0).length;
+
+  const cols = [
+    ['seminar', 'Seminar'], ['faculty', 'Faculty'], ['n', 'Students', 'num'], ['dist', 'Grade distribution'],
+    ['mean', 'Mean', 'num'], ['diff', 'vs rest', 'num'], ['aShare', 'A range', 'num'],
+    ['ratingMean', 'Ratings avg', 'num'], ['calibration', 'Grades vs ratings', 'num'],
+    ['uniqueComments', 'Own comments', 'num'], ['flags', 'Flags', 'num'], ['status', 'Review'],
+  ];
+  const sort = state.sort.overview;
+  const rows = course.seminars.map(sem => {
+    const sf = flags.filter(f => f.seminar === sem.seminar && f.severity !== 'low');
+    const entry = state.log[logKey(course.name, sem.seminar)] || {};
+    return { sem, sf, status: entry.status || 0 };
+  });
+  const val = (r, col) => {
+    if (col === 'seminar') return isNaN(parseFloat(r.sem.seminar)) ? r.sem.seminar : parseFloat(r.sem.seminar);
+    if (col === 'faculty') return r.sem.faculty.join('; ');
+    if (col === 'flags') return r.sf.length;
+    if (col === 'status') return r.status;
+    if (col === 'dist') return r.sem.mean;
+    return r.sem[col];
+  };
+  rows.sort((a, b) => {
+    const x = val(a, sort.col), y = val(b, sort.col);
+    if (x == null) return 1; if (y == null) return -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
+  });
+
+  return `<div class="card">
+    <h2>${esc(course.name)}</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${course.n}</div><div class="l">students</div></div>
+      <div class="kpi"><div class="v">${course.seminars.length}</div><div class="l">seminars</div></div>
+      <div class="kpi"><div class="v">${fmt(course.mean)}</div><div class="l">mean grade points (${letterFor(course.mean)})</div></div>
+      <div class="kpi"><div class="v">${pct(aShare)}</div><div class="l">A or A-</div></div>
+      <div class="kpi"><div class="v">${flags.filter(f => f.severity === 'high').length}</div><div class="l">high flags</div></div>
+      <div class="kpi"><div class="v">${reviewed} / ${course.seminars.length}</div><div class="l">seminars reviewed</div></div>
+    </div>
+    <p class="lede"><strong>How to read this.</strong> <em>vs rest</em> compares a seminar's mean with all other seminars.
+    <em>Ratings avg</em> is the mean element rating (2 = Standards, 3 = Superior, 4 = Distinguished); a strong seminar shows high ratings and high grades.
+    <em>Grades vs ratings</em> compares each grade with what other seminars gave for the same element ratings; a positive number means this seminar grades higher for the same ratings.
+    <em>Own comments</em> is the share of overall comments not copied word for word from a classmate's.
+    Bold numbers pass your thresholds (${s.toFixed(2)} and ${c.toFixed(2)} points). Click a row to see its students.</p>
+    ${legend()}
+    <div class="table-wrap"><table class="data" data-sort-table="overview">
+      <thead><tr>${cols.map(([id, label, cls]) =>
+        `<th class="sortable ${cls || ''}" data-sort="${id}" aria-sort="${sort.col === id ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'}">${esc(label)}${sort.col === id ? (sort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(({ sem, sf, status }) => `
+        <tr class="clickable" data-open-seminar="${esc(sem.seminar)}" data-course="${esc(course.name)}">
+          <td><strong>${esc(sem.seminar)}</strong></td>
+          <td>${esc(sem.faculty.join('; ') || '–')}</td>
+          <td class="num">${sem.n}</td>
+          <td>${distBar(sem)}</td>
+          <td class="num">${fmt(sem.mean)}</td>
+          <td class="num ${sem.diff != null && Math.abs(sem.diff) >= s ? 'out' : ''}">${signed(sem.diff)}</td>
+          <td class="num">${pct(sem.aShare)}</td>
+          <td class="num">${fmt(sem.ratingMean)}</td>
+          <td class="num ${sem.calibration != null && Math.abs(sem.calibration) >= c ? 'out' : ''}" ${sem.calibration == null ? 'data-tip="Too few students with comparable ratings in other seminars."' : `data-tip="Based on ${sem.calibrationN} students"`}>${signed(sem.calibration)}</td>
+          <td class="num">${pct(sem.uniqueComments)}</td>
+          <td class="num">${sf.length ? `<span class="nowrap">${sf.some(f => f.severity === 'high') ? sevBadge('high') : sevBadge('medium')} ${sf.length}</span>` : '0'}</td>
+          <td class="nowrap">${esc(STATUS[status])}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ----- Rating patterns -----
+function renderPatterns(course) {
+  const grades = GRADE_ORDER.filter(g => course.profiles.some(p => p.counts[g]));
+  const max = Math.max(1, ...course.profiles.flatMap(p => Object.values(p.counts)));
+  const mixed = course.profiles.filter(p => p.grades.length > 1).length;
+  return `<div class="card matrix">
+    <h2>${esc(course.name)}: grades given for each rating pattern</h2>
+    <p class="lede">Each row is one combination of element ratings (${course.elements.map(esc).join(' / ')}).
+    Each cell counts the students with that pattern who got that grade. Where a row has more than one grade,
+    faculty graded the same ratings differently. ${mixed} of ${course.profiles.length} patterns are mixed. Click a cell to see the students.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Ratings (${course.elements.map(esc).join(' / ')})</th>${grades.map(g => `<th class="num">${esc(g)}</th>`).join('')}<th class="num">Students</th><th></th></tr></thead>
+      <tbody>${course.profiles.map(p => `
+        <tr class="${p.grades.length > 1 ? 'mixed' : ''}">
+          <th scope="row">${esc(p.label)}</th>
+          ${grades.map(g => {
+            const n = p.counts[g] || 0;
+            if (!n) return '<td class="cell empty">·</td>';
+            const share = 12 + Math.round(70 * n / max);
+            const names = p.records.filter(r => r.grade === g).map(r => `${r.name} (Sem ${r.seminar})`);
+            return `<td class="cell" style="background:color-mix(in srgb, var(--seq) ${share}%, var(--surface));color:${share > 45 ? '#fff' : 'inherit'}"
+              data-pattern="${esc(p.key)}" data-grade="${esc(g)}" data-course="${esc(course.name)}"
+              data-tip="${esc(`${p.label} → ${g}: ${n}\n${names.slice(0, 12).join('\n')}${names.length > 12 ? `\n+${names.length - 12} more` : ''}`)}">${n}</td>`;
+          }).join('')}
+          <td class="num">${p.n}</td>
+          <td>${p.grades.length > 1 ? '<span class="tag">Mixed</span>' : ''}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ----- Flags -----
+function renderFlags() {
+  const ff = state.flagFilter;
+  const all = flagsInView();
+  const semOpts = [...new Set(all.map(f => f.seminar))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  const typeCounts = {};
+  for (const f of all) typeCounts[f.type] = (typeCounts[f.type] || 0) + 1;
+  const text = ff.text.toLowerCase();
+  const shown = all.filter(f => ff.sev[f.severity] && (!ff.type || f.type === ff.type) && (!ff.seminar || f.seminar === ff.seminar) &&
+    (!text || `${f.title} ${f.detail} ${f.keys.map(k => (recordByKey(k) || {}).name).join(' ')}`.toLowerCase().includes(text)));
+  const cur = { ...DEFAULT_SETTINGS, ...state.settings };
+  const sevCount = s => all.filter(f => f.severity === s).length;
+
+  return `
+  <div class="filters">
+    ${['high', 'medium', 'low'].map(s => `<label><input type="checkbox" data-sev="${s}" ${ff.sev[s] ? 'checked' : ''}> ${sevBadge(s)} (${sevCount(s)})</label>`).join('')}
+    <label>Type <select id="flagType"><option value="">All types</option>${Object.keys(FLAG_TYPES).filter(t => typeCounts[t]).map(t =>
+      `<option value="${t}" ${ff.type === t ? 'selected' : ''}>${esc(FLAG_TYPES[t].label)} (${typeCounts[t]})</option>`).join('')}</select></label>
+    <label>Seminar <select id="flagSem"><option value="">All</option>${semOpts.map(s => `<option ${ff.seminar === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+    <label>Search <input type="search" id="flagText" value="${esc(ff.text)}" placeholder="Name or word"></label>
+  </div>
+  <details class="settings card"><summary>Thresholds</summary>
+    <div class="grid">
+      <label>Seminar vs rest (points) <input type="number" step="0.05" min="0.05" id="setSem" value="${cur.seminarThreshold}"></label>
+      <label>Grades vs ratings (points) <input type="number" step="0.05" min="0.05" id="setCal" value="${cur.calibrationThreshold}"></label>
+      <label>Low grade at or below <select id="setLow">${['B', 'B-', 'C+', 'C'].map(g => `<option ${cur.lowGrade === g ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
+    </div>
+  </details>
+  <p class="muted">${shown.length} of ${all.length} flags shown. <em>High</em> flags are likely errors. <em>Check</em> flags need a look. <em>Note</em> flags are context. Use <em>Add to query</em> to put a flag on the seminar's list for the faculty.</p>
+  ${shown.map(renderFlag).join('') || '<div class="card empty-state">No flags match these filters.</div>'}`;
+}
+
+function renderFlag(f) {
+  const entry = state.log[logKey(f.course, f.seminar)] || {};
+  const queued = (entry.queries || []).some(q => q.flag === f.id + '|' + f.title);
+  return `<div class="flag ${queued ? 'queued' : ''}">
+    <div class="top">${sevBadge(f.severity)} <span class="title">${esc(f.title)}</span>
+      <span class="where">${esc(FLAG_TYPES[f.type].label)} · ${state.course ? '' : esc(f.course) + ' · '}Seminar ${esc(f.seminar)}</span></div>
+    <div class="detail">${esc(f.detail)}</div>
+    ${f.keys.length ? `<div class="who">${f.keys.map(k => { const r = recordByKey(k); return r ? `<button class="link" data-student="${esc(k)}">${esc(r.name)}</button>` : ''; }).join('')}</div>` : ''}
+    <div class="row-actions">
+      <button data-queue="${esc(f.id)}">${queued ? 'Remove from query' : 'Add to query'}</button>
+      ${FLAG_TYPES[f.type].scope === 'seminar' ? `<button data-open-seminar="${esc(f.seminar)}" data-course="${esc(f.course)}">Show students</button>` : ''}
+    </div>
+  </div>`;
+}
+
+// ----- Students -----
+function renderStudents() {
+  const sf = state.studentFilter;
+  const courses = coursesInView();
+  const elementNames = [];
+  for (const c of courses) for (const e of c.elements) if (!elementNames.includes(e)) elementNames.push(e);
+  let recs = courses.flatMap(c => c.records);
+  const semOpts = [...new Set(recs.map(r => r.seminar))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  const text = sf.text.toLowerCase();
+  const fk = state.result.flagsByKey;
+  recs = recs.filter(r => (!sf.seminar || r.seminar === sf.seminar) && (!text || `${r.name} ${r.rowName} ${r.faculty}`.toLowerCase().includes(text)) &&
+    (!sf.flagged || (fk.get(r.key) || []).some(f => f.severity !== 'low')) &&
+    (!sf.profile || r.profile.key === sf.profile) && (!sf.grade || r.grade === sf.grade));
+  const sort = state.sort.students;
+  const val = (r, col) => {
+    if (col === 'seminar') return isNaN(parseFloat(r.seminar)) ? r.seminar : parseFloat(r.seminar);
+    if (col === 'name') return r.last.toLowerCase();
+    if (col === 'grade') return r.points;
+    if (col === 'flags') return (fk.get(r.key) || []).filter(f => f.severity !== 'low').length;
+    if (col === 'course') return r.course;
+    const e = r.elements.find(x => x.name === col);
+    return e ? e.score : null;
+  };
+  recs.sort((a, b) => {
+    const x = val(a, sort.col), y = val(b, sort.col);
+    if (x == null) return 1; if (y == null) return -1;
+    return ((x < y ? -1 : x > y ? 1 : 0) * sort.dir) || a.last.localeCompare(b.last);
+  });
+  const cols = [...(state.course ? [] : [['course', 'Course']]), ['seminar', 'Seminar'], ['name', 'Student'],
+    ...elementNames.map(e => [e, e]), ['grade', 'Overall'], ['flags', 'Flags', 'num']];
+  const th = ([id, label, cls]) => `<th class="sortable ${cls || ''}" data-sort="${esc(id)}" aria-sort="${sort.col === id ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'}">${esc(label)}${sort.col === id ? (sort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+
+  return `
+  <div class="filters">
+    <label>Seminar <select id="stuSem"><option value="">All</option>${semOpts.map(s => `<option ${sf.seminar === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+    <label>Search <input type="search" id="stuText" value="${esc(sf.text)}" placeholder="Student or faculty"></label>
+    <label><input type="checkbox" id="stuFlagged" ${sf.flagged ? 'checked' : ''}> Flagged only</label>
+    ${sf.profile || sf.grade ? `<span class="tag">Pattern filter on</span> <button class="link" id="stuClearPattern">Clear pattern filter</button>` : ''}
+  </div>
+  <p class="muted">${recs.length} students. Click a row to read the full report.</p>
+  <div class="table-wrap card" style="padding:0"><table class="data" data-sort-table="students">
+    <thead><tr>${cols.map(th).join('')}</tr></thead>
+    <tbody>${recs.map(r => {
+      const fl = (fk.get(r.key) || []).filter(f => f.severity !== 'low');
+      return `<tr class="clickable" data-student="${esc(r.key)}">
+        ${state.course ? '' : `<td>${esc(r.course)}</td>`}
+        <td>${esc(r.seminar)}</td><td>${esc(r.name)}</td>
+        ${elementNames.map(n => { const e = r.elements.find(x => x.name === n); return `<td>${e ? esc(e.rating) : '–'}</td>`; }).join('')}
+        <td><strong>${esc(r.grade || '–')}</strong></td>
+        <td class="num">${fl.length ? `<span class="nowrap">${fl.some(f => f.severity === 'high') ? sevBadge('high') : sevBadge('medium')} ${fl.length}</span>` : ''}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+function openStudent(key) {
+  const r = recordByKey(key);
+  if (!r) return;
+  const fl = state.result.flagsByKey.get(key) || [];
+  const other = state.records.filter(x => x.person === r.person && x.key !== r.key);
+  const dlg = $('#studentDlg');
+  dlg.innerHTML = `
+    <div class="dhead"><h2>${esc(r.name)}</h2><button id="dlgClose" aria-label="Close">Close</button></div>
+    <div class="dbody">
+      <div class="meta">
+        <span><strong>Course:</strong> ${esc(r.course)}</span><span><strong>Seminar:</strong> ${esc(r.seminar)}</span>
+        <span><strong>Faculty:</strong> ${esc(r.faculty || '–')}</span><span><strong>Date:</strong> ${esc(r.date || '–')}</span>
+        <span><strong>Program:</strong> ${esc(r.program || '–')}</span><span><strong>Signature:</strong> ${esc(r.signature || '–')}</span>
+      </div>
+      ${fl.length ? `<div class="card" style="padding:10px 12px">${fl.map(f => `<div style="margin:4px 0">${sevBadge(f.severity)} <strong>${esc(f.title)}</strong><br><span class="muted">${esc(f.detail)}</span></div>`).join('')}</div>` : '<p class="muted">No flags for this student.</p>'}
+      <table class="data el-table"><thead><tr><th>Element</th><th>Evaluation</th><th>Evaluator's comments</th></tr></thead><tbody>
+        ${r.elements.map(e => `<tr><td>${esc(e.name)}</td><td>${esc(e.rating)}</td><td>${esc(e.comment) || '<span class="muted">No comment</span>'}</td></tr>`).join('')}
+        <tr><td>Overall</td><td>${esc(r.grade || '–')}</td><td>${esc(r.overallComment) || '<span class="muted">No comment</span>'}</td></tr>
+      </tbody></table>
+      ${other.length ? `<h3>Other courses</h3><ul>${other.map(o => `<li><button class="link" data-student="${esc(o.key)}">${esc(o.course)}</button>: ${esc(o.grade || '–')} (Seminar ${esc(o.seminar)})</li>`).join('')}</ul>` : ''}
+    </div>`;
+  if (!dlg.open) dlg.showModal();
+}
+
+// ----- Review log -----
+function renderLog() {
+  const courses = coursesInView();
+  return `
+  <div class="card">
+    <h2>Review log</h2>
+    <p class="lede">Mark each seminar as you review it. Queries you add from the Flags tab appear under the seminar.
+    The log stays in this browser (not in the grade file). Export it before you clear your browser.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <button class="primary" id="copyQueries">Copy query list</button>
+      <button id="dlQueries">Download query list (.txt)</button>
+      <button id="dlLog">Download review log (.csv)</button>
+      <button id="clearLog">Clear review log</button>
+    </div>
+  </div>
+  ${courses.map(c => `<div class="card"><h2>${esc(c.name)}</h2>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Seminar</th><th>Faculty</th><th class="num">Flags</th><th>Status</th><th style="width:45%">Notes and queries</th></tr></thead>
+      <tbody>${c.seminars.map(s => {
+        const k = logKey(c.name, s.seminar);
+        const e = state.log[k] || {};
+        const sf = state.result.flags.filter(f => f.course === c.name && f.seminar === s.seminar && f.severity !== 'low');
+        return `<tr>
+          <td><strong>${esc(s.seminar)}</strong></td><td>${esc(s.faculty.join('; ') || '–')}</td>
+          <td class="num">${sf.length}</td>
+          <td><select data-status="${esc(k)}">${STATUS.map((t, i) => `<option value="${i}" ${(e.status || 0) === i ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></td>
+          <td>
+            ${(e.queries || []).map((q, i) => `<div class="nowrap" style="white-space:normal">- ${esc(q.text)} <button class="link" data-unqueue="${esc(k)}" data-idx="${i}">remove</button></div>`).join('')}
+            <textarea class="note" data-note="${esc(k)}" placeholder="Notes">${esc(e.note || '')}</textarea>
+          </td></tr>`;
+      }).join('')}</tbody>
+    </table></div></div>`).join('')}`;
+}
+
+function queryText() {
+  const lines = [`Grade review queries (${today()})`];
+  for (const c of state.result.courses) {
+    const sems = c.seminars.filter(s => {
+      const e = state.log[logKey(c.name, s.seminar)] || {};
+      return (e.queries || []).length || e.status === 2 || (e.note || '').trim();
+    });
+    if (!sems.length) continue;
+    lines.push(`- ${c.name}`);
+    for (const s of sems) {
+      const e = state.log[logKey(c.name, s.seminar)] || {};
+      lines.push(`\t- Seminar ${s.seminar}${s.faculty.length ? ` (${s.faculty.join('; ')})` : ''}: ${STATUS[e.status || 0]}`);
+      for (const q of e.queries || []) lines.push(`\t\t- ${q.text}`);
+      if ((e.note || '').trim()) lines.push(`\t\t- Note: ${e.note.trim().replace(/\s+/g, ' ')}`);
+    }
+  }
+  return lines.length > 1 ? lines.join('\n') : 'No queries or notes yet.';
+}
+
+function logCsv() {
+  const rows = [['Course', 'Seminar', 'Faculty', 'Status', 'Queries', 'Notes']];
+  for (const c of state.result.courses) for (const s of c.seminars) {
+    const e = state.log[logKey(c.name, s.seminar)] || {};
+    rows.push([c.name, s.seminar, s.faculty.join('; '), STATUS[e.status || 0], (e.queries || []).map(q => q.text).join(' | '), e.note || '']);
+  }
+  return rows.map(r => r.map(v => { const x = String(v); return /[",\r\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x; }).join(',')).join('\r\n');
+}
+
+function toggleQuery(flagId) {
+  const f = state.result.flags.find(x => x.id === flagId);
+  if (!f) return;
+  const k = logKey(f.course, f.seminar);
+  const e = state.log[k] || (state.log[k] = {});
+  e.queries = e.queries || [];
+  const tag = f.id + '|' + f.title;
+  const idx = e.queries.findIndex(q => q.flag === tag);
+  if (idx >= 0) e.queries.splice(idx, 1);
+  else {
+    const who = f.keys.map(key => (recordByKey(key) || {}).name).filter(Boolean);
+    const whoText = who.length ? (who.length > 3 ? `${who.slice(0, 3).join('; ')} and ${who.length - 3} more` : who.join('; ')) + ': ' : '';
+    e.queries.push({ flag: tag, text: `${whoText}${f.title}. ${f.detail}` });
+    if (!e.status) e.status = 2;
+  }
+  saveJson(LOG_KEY, state.log);
+}
+
+// ---------- events ----------
+function sortBy(table, col) {
+  const s = state.sort[table];
+  if (s.col === col) s.dir = -s.dir; else { s.col = col; s.dir = 1; }
+  render();
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button, [data-tab], [data-sort], [data-open-seminar], [data-student], td.cell[data-pattern], #pickBtn2');
+  if (!t) return;
+  if (t.id === 'pickBtn' || t.id === 'pickBtn2') { $('#fileInput').click(); return; }
+  if (t.id === 'sampleBtn') { addRecords(parseExport(JSON.stringify(makeSampleExport())), 'sample data'); toast('Loaded made-up sample data.'); return; }
+  if (t.id === 'clearBtn') {
+    if (confirm('Unload all grade data from this page? Your review log stays.')) { state.records = []; state.sources = []; recompute(); }
+    return;
+  }
+  if (t.id === 'exportBtn') { download(`grade-review-${today()}.csv`, toCsv(state.records, state.result.flagsByKey), 'text/csv'); return; }
+  if (t.id === 'copyCode') { copy(COLLECTOR_SRC, 'Collector code copied. Paste it into the console on the Compass page.'); return; }
+  if (t.id === 'dlgClose') { $('#studentDlg').close(); return; }
+  if (t.id === 'copyQueries') { copy(queryText(), 'Query list copied.'); return; }
+  if (t.id === 'dlQueries') { download(`grade-queries-${today()}.txt`, queryText(), 'text/plain'); return; }
+  if (t.id === 'dlLog') { download(`grade-review-log-${today()}.csv`, logCsv(), 'text/csv'); return; }
+  if (t.id === 'clearLog') { if (confirm('Delete all review statuses, notes, and queries?')) { state.log = {}; saveJson(LOG_KEY, state.log); render(); } return; }
+  if (t.id === 'stuClearPattern') { state.studentFilter.profile = ''; state.studentFilter.grade = ''; render(); return; }
+  if (t.dataset.tab) { state.tab = t.dataset.tab; render(); return; }
+  if (t.dataset.sort) { sortBy(t.closest('table').dataset.sortTable, t.dataset.sort); return; }
+  if (t.dataset.queue) { toggleQuery(t.dataset.queue); render(); return; }
+  if (t.dataset.unqueue) {
+    const entry = state.log[t.dataset.unqueue];
+    entry.queries.splice(Number(t.dataset.idx), 1);
+    saveJson(LOG_KEY, state.log); render(); return;
+  }
+  if (t.dataset.student) { openStudent(t.dataset.student); return; }
+  if (t.dataset.openSeminar != null) {
+    state.course = t.dataset.course;
+    Object.assign(state.studentFilter, { seminar: t.dataset.openSeminar, text: '', flagged: false, profile: '', grade: '' });
+    state.tab = 'students'; render(); return;
+  }
+  if (t.dataset.pattern) {
+    state.course = t.dataset.course;
+    Object.assign(state.studentFilter, { seminar: '', text: '', flagged: false, profile: t.dataset.pattern, grade: t.dataset.grade });
+    state.tab = 'students'; render();
+  }
+});
+
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'fileInput') { loadFiles([...t.files]); t.value = ''; return; }
+  if (t.id === 'courseSel') { state.course = t.value; state.studentFilter.seminar = ''; state.flagFilter.seminar = ''; render(); return; }
+  if (t.dataset.sev) { state.flagFilter.sev[t.dataset.sev] = t.checked; render(); return; }
+  if (t.id === 'flagType') { state.flagFilter.type = t.value; render(); return; }
+  if (t.id === 'flagSem') { state.flagFilter.seminar = t.value; render(); return; }
+  if (t.id === 'stuSem') { state.studentFilter.seminar = t.value; render(); return; }
+  if (t.id === 'stuFlagged') { state.studentFilter.flagged = t.checked; render(); return; }
+  if (t.id === 'setSem' || t.id === 'setCal' || t.id === 'setLow') {
+    const v = t.id === 'setLow' ? t.value : parseFloat(t.value);
+    if (t.id !== 'setLow' && !(v > 0)) return;
+    state.settings[{ setSem: 'seminarThreshold', setCal: 'calibrationThreshold', setLow: 'lowGrade' }[t.id]] = v;
+    saveJson(SETTINGS_KEY, state.settings);
+    recompute();
+    return;
+  }
+  if (t.dataset.status) {
+    const e2 = state.log[t.dataset.status] || (state.log[t.dataset.status] = {});
+    e2.status = Number(t.value); saveJson(LOG_KEY, state.log);
+  }
+});
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.note) {
+    const e2 = state.log[t.dataset.note] || (state.log[t.dataset.note] = {});
+    e2.note = t.value; saveJson(LOG_KEY, state.log);
+    return;
+  }
+  if (t.id === 'flagText' || t.id === 'stuText') {
+    const pos = t.selectionStart;
+    if (t.id === 'flagText') state.flagFilter.text = t.value; else state.studentFilter.text = t.value;
+    render();
+    const n = $('#' + t.id); n.focus(); n.setSelectionRange(pos, pos);
+  }
+});
+
+function copy(text, msg) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => toast(msg), () => fallbackCopy(text, msg));
+  } else fallbackCopy(text, msg);
+}
+function fallbackCopy(text, msg) {
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast(msg); } catch (e) { alert('Copy failed. Select the text and copy it by hand.'); }
+  ta.remove();
+}
+
+// Drag and drop anywhere.
+['dragenter', 'dragover'].forEach(ev => window.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('dragging'); }));
+['dragleave', 'drop'].forEach(ev => window.addEventListener(ev, e => {
+  e.preventDefault();
+  if (ev === 'dragleave' && e.relatedTarget) return;
+  document.body.classList.remove('dragging');
+  if (ev === 'drop' && e.dataTransfer && e.dataTransfer.files.length) loadFiles([...e.dataTransfer.files]);
+}));
+
+// Tooltip for any element with data-tip.
+const tip = $('#tip');
+document.addEventListener('mouseover', e => {
+  const t = e.target.closest('[data-tip]');
+  if (!t) { tip.style.display = 'none'; return; }
+  tip.textContent = t.dataset.tip; tip.style.display = 'block';
+});
+document.addEventListener('mousemove', e => {
+  if (tip.style.display !== 'block') return;
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  const y = e.clientY + 16 + tip.offsetHeight > window.innerHeight ? e.clientY - tip.offsetHeight - 10 : e.clientY + 16;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+});
+$('#studentDlg').addEventListener('click', e => { if (e.target.id === 'studentDlg') e.target.close(); });
+
+render();
+
+})();
+</script>
+</body>
+</html>
