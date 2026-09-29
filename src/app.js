@@ -154,9 +154,11 @@ function renderSetup(welcome) {
         <div style="margin:8px 0"><a class="bookmarklet" id="bm" href="#">Collect grades</a></div>
         <span class="muted">If the bookmarks bar is hidden, press Ctrl+Shift+B. If your browser blocks bookmarklets,
         <button class="link" id="copyCode">copy the collector code</button>, open Compass, press F12, choose Console, paste, and press Enter.</span></li>
-      <li><strong>Collect from Compass.</strong> Log in and open the Director Dashboard list for one course and seminar.
-        Click <em>Collect grades</em>. A panel opens; click <em>Collect this page</em>. It opens each student's report,
-        reads it, and closes it. Repeat for each seminar and course. The panel keeps everything you collect.</li>
+      <li><strong>Collect from Compass.</strong> Log in and open the Director Dashboard page where you pick a seminar.
+        Click <em>Collect grades</em>. A panel opens. Click <em>Collect many seminars</em>, tick the seminars, and click <em>Start</em>.
+        A work window opens over the page and reads every student's report in each seminar. Leave the tab open until it says Done.
+        <br><span class="muted">To read only the seminar on screen, open its student list and click <em>Collect this page</em>.
+        The panel keeps everything you collect, across seminars and courses.</span></li>
       <li><strong>Download.</strong> In the panel, click <em>Download for review</em>. Then click <em>Clear saved data</em>.</li>
       <li><strong>Load the file here.</strong>
         <div class="drop" id="drop" style="margin-top:8px">Drop the file here, or
