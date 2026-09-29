@@ -1,0 +1,5 @@
+node_modules/
+.shots/
+*.json.local
+compass-grades-*
+grade-review-*.csv
