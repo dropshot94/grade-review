@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   var KEY = 'gradeCollector.v1';
-  var VERSION = '2';
+  var VERSION = '3';
   if (window.__gradeCollector) { window.__gradeCollector.show(); return; }
 
   // ---------- storage (this browser only) ----------
@@ -271,6 +271,8 @@
 
   // ---------- many seminars ----------
   // Choices: groups of similar links or clickable items, and drop-down lists.
+  // Anything that can pick a seminar: links, buttons, clickable rows and cells.
+  var CHOICE_SEL = 'a, button, [onclick], [role="button"], input[type="button"], input[type="submit"], input[type="image"]';
   function linkInfo(el, doc) {
     var href = el.getAttribute('href') || '';
     var oc = el.getAttribute('onclick') || '';
@@ -282,18 +284,49 @@
       return { sig: 'link:' + u.pathname + '?' + names.sort().join('&'), url: u.href };
     }
     var code = oc || href.replace(/^javascript:/i, '');
-    if (!code) return null;
-    var fn = code.match(/([A-Za-z_$][\w$.]*)\s*\(/);
-    return { sig: 'click:' + el.tagName + ':' + (fn ? fn[1] : '?'), url: null };
+    if (code) {
+      var fn = code.match(/([A-Za-z_$][\w$.]*)\s*\(/);
+      return { sig: 'click:' + el.tagName + ':' + (fn ? fn[1] : '?'), url: null };
+    }
+    // A button in a table row with a script attached some other way (for example, an edit icon).
+    if (el.closest('tr') && el.tagName !== 'TR' && el.tagName !== 'TD') {
+      return { sig: 'rowbutton:' + el.tagName + ':' + (typeof el.className === 'string' ? el.className.trim() : ''), url: null };
+    }
+    return null;
+  }
+  function headerNames(table) {
+    var row = table.querySelector('thead tr') || table.querySelector('tr');
+    return row ? cellsOf(row).map(txt) : [];
+  }
+  // Name a choice. Icon-only buttons in a table take their name from the row: "Seminar 4 · Course".
+  function labelFor(el) {
+    var own = txt(el) || el.value || '';
+    var tr = el.closest('tr');
+    if (tr && (own.length < 4 || /^(edit|view|open|select|go|details?)$/i.test(own))) {
+      var cells = cellsOf(tr), heads = headerNames(tr.closest('table'));
+      var sem = '', course = '';
+      cells.forEach(function (c, i) {
+        if (c.contains(el)) return;
+        var h = heads[i] || '', v = txt(c);
+        if (!v) return;
+        if (/semin/i.test(h) && !sem) sem = 'Seminar ' + v;
+        else if (/course/i.test(h) && !course) course = v;
+      });
+      if (sem || course) return [sem, course].filter(Boolean).join(' \u00b7 ');
+      var rowText = cells.filter(function (c) { return !c.contains(el); }).map(txt).filter(Boolean).join(' \u00b7 ');
+      if (rowText) return rowText.slice(0, 100);
+    }
+    return (own || el.getAttribute('title') || el.getAttribute('aria-label') || '').slice(0, 100);
   }
   function findLinkGroups(doc) {
     var groups = {}, order = [];
-    var els = doc.querySelectorAll('a[href], [onclick]');
+    var els = doc.querySelectorAll(CHOICE_SEL);
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
       if (panel.contains(el) || !visible(el)) continue;
-      var text = txt(el);
-      if (!text || text.length > 80) continue;
+      if (el.parentElement && el.parentElement.closest(CHOICE_SEL)) continue; // inner part of another choice
+      var text = labelFor(el);
+      if (!text) continue;
       var info = linkInfo(el, doc);
       if (!info) continue;
       if (!groups[info.sig]) { groups[info.sig] = []; order.push(info.sig); }
@@ -432,10 +465,10 @@
       await helperGo(startUrl);
       var d = helperDoc();
       if (choice.kind === 'links') {
-        var el = null, els = d.querySelectorAll('a[href], [onclick]');
+        var el = null, els = d.querySelectorAll(CHOICE_SEL);
         for (var i = 0; i < els.length && !el; i++) {
           var info = linkInfo(els[i], d);
-          if (info && info.sig === choice.sig && visible(els[i]) && txt(els[i]) === item.text) el = els[i];
+          if (info && info.sig === choice.sig && visible(els[i]) && labelFor(els[i]) === item.text) el = els[i];
         }
         if (!el) throw new Error('Could not find "' + item.text + '" after reloading the page.');
         await helperAct(function () { el.click(); });
